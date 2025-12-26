@@ -41,7 +41,7 @@ export const Login: React.FC = () => {
                   type="text"
                   required
                   className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  placeholder="Örn: ahmet"
+                  placeholder="Kullanıcı Adı"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                 />
@@ -71,10 +71,6 @@ export const Login: React.FC = () => {
               Giriş Yap
             </button>
           </form>
-          
-          <div className="mt-6 text-center text-xs text-gray-400">
-            Demo hesaplar: admin/1234, ahmet/1234, ayse/1234
-          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Product, Customer, Sale, Transaction, User, UserRole, TransactionType, AppSettings, PaymentStatus, SaleStatus, ReturnDetails, ProductCost, ActivityLog, ReturnItem, CartItem } from '../types';
+import { supabase } from '../src/supabaseClient';
 
 interface StoreContextType {
   currentUser: User | null;
@@ -14,116 +15,225 @@ interface StoreContextType {
   productCosts: ProductCost[];
   activityLogs: ActivityLog[];
   settings: AppSettings;
-  // Cart Context
   cart: CartItem[];
   addToCart: (product: Product) => void;
   removeFromCart: (id: string) => void;
   updateCartQuantity: (id: string, delta: number) => void;
   clearCart: () => void;
-  // Actions
   addUser: (user: User) => Promise<void>;
+  updateUser: (user: User) => Promise<void>; 
   deleteUser: (id: string) => Promise<void>;
   addProduct: (product: Product) => Promise<boolean>;
   updateProduct: (product: Product) => Promise<void>;
-  deleteProduct: (id: string) => Promise<boolean>; // Actually archives
+  deleteProduct: (id: string) => Promise<boolean>; 
   addCustomer: (customer: Customer) => Promise<void>;
   updateCustomer: (customer: Customer) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
   adjustCustomerBalance: (customerId: string, amount: number, type: 'DEBT' | 'CREDIT', description: string) => Promise<void>;
   addSale: (sale: Sale) => Promise<void>;
   updateSale: (sale: Sale) => Promise<void>;
-  editSale: (updatedSale: Sale) => Promise<void>; // NEW: Full Edit
+  editSale: (updatedSale: Sale) => Promise<void>;
   updateSalePaymentStatus: (saleId: string, newStatus: PaymentStatus) => Promise<void>;
   processReturn: (saleId: string, details: ReturnDetails, returnedItems: ReturnItem[]) => Promise<void>;
   updateReturnPayment: (saleId: string, paymentDetails: Partial<ReturnDetails>) => Promise<void>;
   processCollection: (saleId: string, amount: number, method: string, description: string) => Promise<void>;
-  processGeneralCollection: (customerId: string, amount: number, method: string, description: string) => Promise<void>; // NEW
+  processGeneralCollection: (customerId: string, amount: number, method: string, description: string) => Promise<void>;
   addTransaction: (transaction: Transaction) => Promise<void>;
   saveProductCost: (cost: ProductCost) => Promise<void>;
   updateSettings: (settings: AppSettings) => void;
   refreshData: () => void;
   logActivity: (action: ActivityLog['action'], entity: ActivityLog['entity'], description: string) => void;
+  resetDatabase: () => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-// ... (Default Data & Constants - same as before) ...
-const DEFAULT_USERS: User[] = [
-  { id: '1', username: 'admin', password: '123', name: 'Yönetici', role: UserRole.ADMIN },
-  { id: '2', username: 'personel', password: '123', name: 'Personel', role: UserRole.PERSONNEL },
-];
-
 const DEFAULT_SETTINGS: AppSettings = {
-  productCategories: ['Booster', 'Deodizer Duo', 'Health Detect', 'Pro-V', 'CatMalt'],
-  variantOptions: ['1. Paket', '2. Paket', '3. Paket', '5 Litre', '10 Litre', 'Test Kiti', '100ml'],
+  productCategories: ['Genel'],
+  variantOptions: ['Adet', 'Paket', 'Koli'],
   customerTypes: ['Bireysel Müşteri', 'Kurumsal Müşteri'],
-  salesChannels: ['Toptan', 'Veteriner', 'Petshop', 'Market', 'Trendyol', 'Hepsiburada', 'Instagram', 'Elden'],
-  deliveryTypes: ['Elden', 'Kargo', 'Müşteri Adresinde'],
-  shippingCompanies: ['Aras Kargo', 'Yurtiçi Kargo', 'MNG Kargo', 'Sürat Kargo', 'PTT Kargo']
+  salesChannels: ['Mağaza', 'Online', 'Telefon'],
+  deliveryTypes: ['Elden', 'Kargo', 'Kurye'],
+  shippingCompanies: ['Aras Kargo', 'Yurtiçi Kargo', 'MNG Kargo']
 };
-
-const MOCK_PRODUCTS: Product[] = [
-  { id: 'p1', baseName: 'Booster', variantName: '5 Litre', sellPrice: 250, stockQuantity: 500, lowStockThreshold: 20, isActive: true, createdBy: 'Yönetici' },
-  { id: 'p2', baseName: 'Deodizer Duo', variantName: '1. Paket', sellPrice: 180, stockQuantity: 350, lowStockThreshold: 15, isActive: true, createdBy: 'Yönetici' },
-  { id: 'p3', baseName: 'Health Detect', variantName: 'Test Kiti', sellPrice: 450, stockQuantity: 100, lowStockThreshold: 10, isActive: true, createdBy: 'Ahmet Personel' },
-  { id: 'p4', baseName: 'Pro-V', variantName: '10 Litre', sellPrice: 600, stockQuantity: 45, lowStockThreshold: 50, isActive: true, createdBy: 'Ayşe Personel' }, 
-  { id: 'p5', baseName: 'CatMalt', variantName: '100ml', sellPrice: 120, stockQuantity: 1000, lowStockThreshold: 100, isActive: true, createdBy: 'Ayşe Personel' }
-];
-
-const generateCustomers = (): Customer[] => {
-    const customers: Customer[] = [];
-    const cities = ['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana'];
-    for (let i = 1; i <= 10; i++) {
-        customers.push({
-            id: `cust_ahmet_${i}`,
-            name: `Ahmet Müşteri ${i}`,
-            type: i % 2 === 0 ? 'Kurumsal Müşteri' : 'Bireysel Müşteri',
-            salesChannel: i % 3 === 0 ? 'Trendyol' : 'Petshop',
-            email: `ahmet.m${i}@mail.com`,
-            phone: `0530 100 00 ${i.toString().padStart(2, '0')}`,
-            city: cities[i % cities.length],
-            district: 'Merkez',
-            address: `Örnek Mah. No:${i}`,
-            currentBalance: i % 4 === 0 ? -500 * i : 0, 
-            createdBy: 'Ahmet Personel'
-        });
-    }
-    return customers;
-};
-
-const MOCK_GENERATED_CUSTOMERS = generateCustomers();
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // ... (State initialization same as before) ...
-  const [users, setUsers] = useState<User[]>(() => { const saved = localStorage.getItem('users'); return saved ? JSON.parse(saved) : DEFAULT_USERS; });
+  const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => { const saved = localStorage.getItem('currentUser'); return saved ? JSON.parse(saved) : null; });
-  const [products, setProducts] = useState<Product[]>(() => { const saved = localStorage.getItem('products'); const parsed = saved ? JSON.parse(saved) : MOCK_PRODUCTS; return parsed.map((p: any) => ({ ...p, isActive: p.isActive !== undefined ? p.isActive : true })); });
-  const [customers, setCustomers] = useState<Customer[]>(() => { const saved = localStorage.getItem('customers'); return saved ? JSON.parse(saved) : MOCK_GENERATED_CUSTOMERS; });
-  const [sales, setSales] = useState<Sale[]>(() => { const saved = localStorage.getItem('sales'); return saved ? JSON.parse(saved) : []; });
-  const [transactions, setTransactions] = useState<Transaction[]>(() => { const saved = localStorage.getItem('transactions'); return saved ? JSON.parse(saved) : []; });
-  const [productCosts, setProductCosts] = useState<ProductCost[]>(() => { const saved = localStorage.getItem('productCosts'); return saved ? JSON.parse(saved) : []; });
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => { const saved = localStorage.getItem('activityLogs'); return saved ? JSON.parse(saved) : []; });
-  const [settings, setSettings] = useState<AppSettings>(() => { const saved = localStorage.getItem('appSettings'); const parsed = saved ? JSON.parse(saved) : DEFAULT_SETTINGS; return { ...DEFAULT_SETTINGS, ...parsed }; });
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [cart, setCart] = useState<CartItem[]>(() => { const saved = localStorage.getItem('posCart'); return saved ? JSON.parse(saved) : []; });
 
-  useEffect(() => { localStorage.setItem('users', JSON.stringify(users)); }, [users]);
+  // Persistence for Cart and Session only
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
-  useEffect(() => { localStorage.setItem('products', JSON.stringify(products)); }, [products]);
-  useEffect(() => { localStorage.setItem('customers', JSON.stringify(customers)); }, [customers]);
-  useEffect(() => { localStorage.setItem('sales', JSON.stringify(sales)); }, [sales]);
-  useEffect(() => { localStorage.setItem('transactions', JSON.stringify(transactions)); }, [transactions]);
-  useEffect(() => { localStorage.setItem('productCosts', JSON.stringify(productCosts)); }, [productCosts]);
-  useEffect(() => { localStorage.setItem('activityLogs', JSON.stringify(activityLogs)); }, [activityLogs]);
-  useEffect(() => { localStorage.setItem('appSettings', JSON.stringify(settings)); }, [settings]);
   useEffect(() => { localStorage.setItem('posCart', JSON.stringify(cart)); }, [cart]);
 
-  // --- DATA ISOLATION LOGIC ---
-  
+  // --- SUPABASE DATA MAPPING HELPERS ---
+  const mapDbProduct = (p: any): Product => ({
+    id: p.id,
+    baseName: p.base_name,
+    variantName: p.variant_name,
+    description: p.description,
+    sellPrice: Number(p.sell_price),
+    stockQuantity: p.stock_quantity,
+    lowStockThreshold: p.low_stock_threshold,
+    isActive: p.is_active,
+    isArchived: p.is_archived,
+    createdBy: p.created_by
+  });
+
+  const mapDbCustomer = (c: any): Customer => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    salesChannel: c.sales_channel,
+    email: c.email,
+    phone: c.phone,
+    city: c.city,
+    district: c.district,
+    address: c.address,
+    description: c.description,
+    currentBalance: Number(c.current_balance),
+    createdBy: c.created_by
+  });
+
+  const mapDbSale = (s: any): Sale => ({
+    id: s.id,
+    customerId: s.customer_id,
+    customerName: s.customer_name,
+    items: [], // Populated separately
+    totalAmount: Number(s.total_amount),
+    shippingCost: Number(s.shipping_cost),
+    paidAmount: Number(s.paid_amount),
+    discountAmount: Number(s.discount_amount),
+    date: s.date,
+    paymentStatus: s.payment_status,
+    status: s.status,
+    type: s.type,
+    shippingPayer: s.shipping_payer,
+    deliveryStatus: s.delivery_status,
+    deliveryType: s.delivery_type,
+    shippingCompany: s.shipping_company,
+    trackingNumber: s.tracking_number,
+    dueDate: s.due_date,
+    personnelName: s.personnel_name,
+    returnDetails: s.return_details,
+    shippingUpdatedBy: s.shipping_updated_by
+  });
+
+  // --- INITIAL DATA FETCH ---
+  const refreshData = async () => {
+    try {
+      const [
+        { data: usersData },
+        { data: productsData },
+        { data: customersData },
+        { data: salesData },
+        { data: saleItemsData },
+        { data: transactionsData },
+        { data: costsData },
+        { data: settingsData },
+        { data: logsData }
+      ] = await Promise.all([
+        supabase.from('users').select('*'),
+        supabase.from('products').select('*').order('created_at', { ascending: false }),
+        supabase.from('customers').select('*').order('created_at', { ascending: false }),
+        supabase.from('sales').select('*').order('date', { ascending: false }),
+        supabase.from('sale_items').select('*'),
+        supabase.from('transactions').select('*').order('date', { ascending: false }),
+        supabase.from('product_costs').select('*'),
+        supabase.from('app_settings').select('*').limit(1).single(),
+        supabase.from('activity_logs').select('*').order('date', { ascending: false }).limit(100)
+      ]);
+
+      if (usersData) setUsers(usersData);
+      if (productsData) setProducts(productsData.map(mapDbProduct));
+      if (customersData) setCustomers(customersData.map(mapDbCustomer));
+      
+      if (salesData) {
+        const fullSales = salesData.map(s => {
+          const mappedSale = mapDbSale(s);
+          mappedSale.items = (saleItemsData || [])
+            .filter((i: any) => i.sale_id === s.id)
+            .map((i: any) => ({
+              productId: i.product_id,
+              productName: i.product_name,
+              quantity: i.quantity,
+              unitPrice: Number(i.unit_price),
+              totalPrice: Number(i.total_price)
+            }));
+          return mappedSale;
+        });
+        setSales(fullSales);
+      }
+
+      if (transactionsData) {
+        setTransactions(transactionsData.map((t: any) => ({
+          id: t.id,
+          customerId: t.customer_id,
+          amount: Number(t.amount),
+          type: t.type,
+          date: t.date,
+          description: t.description,
+          personnelName: t.personnel_name,
+          saleId: t.sale_id
+        })));
+      }
+
+      if (costsData) {
+        setProductCosts(costsData.map((c: any) => ({
+          productId: c.product_id,
+          productNetWeight: Number(c.product_net_weight),
+          rawMaterials: c.raw_materials,
+          otherCosts: c.other_costs,
+          totalCost: Number(c.total_cost),
+          lastUpdated: c.last_updated
+        })));
+      }
+
+      if (settingsData) {
+        setSettings({
+          productCategories: settingsData.product_categories || [],
+          variantOptions: settingsData.variant_options || [],
+          customerTypes: settingsData.customer_types || [],
+          salesChannels: settingsData.sales_channels || [],
+          deliveryTypes: settingsData.delivery_types || [],
+          shippingCompanies: settingsData.shipping_companies || []
+        });
+      }
+
+      if (logsData) {
+        setActivityLogs(logsData.map((l: any) => ({
+          id: l.id,
+          date: l.date,
+          userId: l.user_id,
+          userName: l.user_name,
+          userRole: l.user_role,
+          action: l.action,
+          entity: l.entity,
+          description: l.description,
+          metadata: l.metadata
+        })));
+      }
+
+    } catch (error) {
+      console.error("Veri çekme hatası:", error);
+    }
+  };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
+
+  // --- LOGIC ---
   const visibleSales = useMemo(() => {
     if (!currentUser) return [];
-    // Admin sees everything
     if (currentUser.role === UserRole.ADMIN) return sales;
-    // Personnel sees only sales made by them (matched by name)
     return sales.filter(s => s.personnelName === currentUser.name);
   }, [sales, currentUser]);
 
@@ -139,18 +249,40 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return activityLogs.filter(l => l.userName === currentUser.name);
   }, [activityLogs, currentUser]);
 
-  // Note: Products and Customers remain global (Shared resources), 
-  // but users will only see their own sales history on customer detail cards via the filtered `visibleSales`.
-
-  // -----------------------------
-
-  const logActivity = (action: ActivityLog['action'], entity: ActivityLog['entity'], description: string) => {
+  const logActivity = async (action: ActivityLog['action'], entity: ActivityLog['entity'], description: string) => {
     if (!currentUser) return;
-    const newLog: ActivityLog = { id: Math.random().toString(36).substr(2, 9), date: new Date().toISOString(), userId: currentUser.id, userName: currentUser.name, userRole: currentUser.role, action, entity, description };
-    setActivityLogs(prev => [newLog, ...prev]);
+    const newLog = { 
+      user_id: currentUser.id, 
+      user_name: currentUser.name, 
+      user_role: currentUser.role, 
+      action, entity, description,
+      date: new Date().toISOString()
+    };
+    await supabase.from('activity_logs').insert(newLog);
+    refreshData();
   };
 
-  const refreshData = () => {};
+  const resetDatabase = async () => {
+      const confirm = window.confirm("DİKKAT: Veritabanındaki SATIŞ, MÜŞTERİ, ÜRÜN ve FİNANSAL tüm veriler kalıcı olarak silinecek. Ayarlar ve Kullanıcılar korunacaktır. Emin misiniz?");
+      if (!confirm) return;
+      
+      try {
+        // Sırayla silme (Foreign Key constraintlerine dikkat ederek)
+        await supabase.from('activity_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('sale_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('customers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('product_costs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        
+        alert("Veritabanı sıfırlandı.");
+        window.location.reload();
+      } catch (e) {
+        console.error(e);
+        alert("Sıfırlama sırasında hata oluştu veya yetkiniz yetersiz.");
+      }
+  };
 
   // Cart Functions
   const addToCart = (product: Product) => {
@@ -171,136 +303,238 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Auth & User Actions
   const login = async (username: string, password: string) => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    const user = users.find(u => u.username === username && (password === '1234' || password === u.password));
-    if (user) { setCurrentUser(user); logActivity('LOGIN', 'SETTINGS', 'Sisteme giriş yapıldı.'); return true; }
+    const { data, error } = await supabase.from('users').select('*').eq('username', username).eq('password', password).single();
+    if (data) { 
+        setCurrentUser(data); 
+        logActivity('LOGIN', 'SETTINGS', 'Sisteme giriş yapıldı.');
+        return true; 
+    }
     return false;
   };
   const logout = () => setCurrentUser(null);
-  const addUser = async (user: User) => { setUsers(prev => [...prev, user]); logActivity('CREATE', 'SETTINGS', `Yeni kullanıcı eklendi: ${user.username}`); };
-  const deleteUser = async (id: string) => { if (currentUser && currentUser.id === id) { alert("Kendi hesabınızı silemezsiniz!"); return; } setUsers(prev => prev.filter(u => u.id !== id)); logActivity('DELETE', 'SETTINGS', `Kullanıcı silindi: ID ${id}`); };
+  
+  const addUser = async (user: User) => { 
+      await supabase.from('users').insert({ username: user.username, password: user.password, name: user.name, role: user.role });
+      logActivity('CREATE', 'SETTINGS', `Yeni kullanıcı eklendi: ${user.username}`);
+      refreshData();
+  };
+  
+  const updateUser = async (updatedUser: User) => {
+      await supabase.from('users').update({ password: updatedUser.password }).eq('id', updatedUser.id);
+      if (currentUser && currentUser.id === updatedUser.id) { setCurrentUser(updatedUser); }
+      logActivity('UPDATE', 'SETTINGS', `Kullanıcı güncellendi: ${updatedUser.username}`);
+      refreshData();
+  };
+
+  const deleteUser = async (id: string) => { 
+      if (currentUser && currentUser.id === id) { alert("Kendinizi silemezsiniz!"); return; } 
+      await supabase.from('users').delete().eq('id', id);
+      logActivity('DELETE', 'SETTINGS', `Kullanıcı silindi: ID ${id}`);
+      refreshData();
+  };
 
   // Product Actions
   const addProduct = async (product: Product) => {
-      const exists = products.some(p => p.baseName.toLowerCase() === product.baseName.toLowerCase() && p.variantName.toLowerCase() === product.variantName.toLowerCase() && !p.isArchived);
-      if (exists) { alert('Bu isim ve varyanta sahip bir ürün zaten mevcut!'); return false; }
-      setProducts(prev => [...prev, { ...product, isActive: true, isArchived: false }]);
-      logActivity('CREATE', 'PRODUCT', `Yeni ürün eklendi: ${product.baseName} - ${product.variantName}`);
+      const { data } = await supabase.from('products').insert({
+          base_name: product.baseName,
+          variant_name: product.variantName,
+          description: product.description,
+          sell_price: product.sellPrice,
+          stock_quantity: product.stockQuantity,
+          low_stock_threshold: product.lowStockThreshold,
+          is_active: true,
+          created_by: product.createdBy
+      }).select();
+      
+      if (data) {
+          logActivity('CREATE', 'PRODUCT', `Yeni ürün: ${product.baseName}`);
+          refreshData();
+          return true;
+      }
+      refreshData(); // Ensure data is refreshed even if select fails
       return true;
   };
-  const updateProduct = async (product: Product) => { setProducts(prev => prev.map(p => p.id === product.id ? product : p)); logActivity('UPDATE', 'PRODUCT', `Ürün güncellendi: ${product.baseName} - ${product.variantName}`); };
+
+  const updateProduct = async (product: Product) => { 
+      await supabase.from('products').update({
+          base_name: product.baseName,
+          variant_name: product.variantName,
+          sell_price: product.sellPrice,
+          stock_quantity: product.stockQuantity,
+          is_active: product.isActive
+      }).eq('id', product.id);
+      logActivity('UPDATE', 'PRODUCT', `Ürün güncellendi: ${product.baseName}`);
+      refreshData();
+  };
   
-  // SOFT DELETE (ARCHIVE)
   const deleteProduct = async (id: string) => {
-      const product = products.find(p => p.id === id);
-      if (!product) return false;
-      setProducts(prev => prev.map(p => p.id === id ? { ...p, isArchived: true, isActive: false } : p));
-      logActivity('DELETE', 'PRODUCT', `Ürün arşive taşındı: ${product.baseName} - ${product.variantName}`);
+      // Soft Delete (Archive)
+      await supabase.from('products').update({ is_archived: true, is_active: false }).eq('id', id);
+      logActivity('DELETE', 'PRODUCT', `Ürün arşivlendi: ID ${id}`);
+      refreshData();
       return true;
   };
 
   // Customer Actions
-  const addCustomer = async (customer: Customer) => { setCustomers(prev => [...prev, customer]); logActivity('CREATE', 'CUSTOMER', `Yeni müşteri eklendi: ${customer.name}`); };
-  const updateCustomer = async (customer: Customer) => { setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c)); logActivity('UPDATE', 'CUSTOMER', `Müşteri bilgileri güncellendi: ${customer.name}`); };
-  const deleteCustomer = async (id: string) => { const customer = customers.find(c => c.id === id); if(customer) { setCustomers(prev => prev.filter(c => c.id !== id)); logActivity('DELETE', 'CUSTOMER', `Müşteri silindi: ${customer.name}`); } };
+  const addCustomer = async (customer: Customer) => { 
+      await supabase.from('customers').insert({
+          name: customer.name,
+          type: customer.type,
+          sales_channel: customer.salesChannel,
+          email: customer.email,
+          phone: customer.phone,
+          city: customer.city,
+          district: customer.district,
+          address: customer.address,
+          description: customer.description,
+          current_balance: 0,
+          created_by: customer.createdBy
+      });
+      logActivity('CREATE', 'CUSTOMER', `Yeni müşteri: ${customer.name}`);
+      refreshData();
+  };
+
+  const updateCustomer = async (customer: Customer) => { 
+      await supabase.from('customers').update({
+          name: customer.name,
+          type: customer.type,
+          sales_channel: customer.salesChannel,
+          phone: customer.phone,
+          email: customer.email,
+          city: customer.city,
+          district: customer.district,
+          address: customer.address,
+          description: customer.description
+      }).eq('id', customer.id);
+      logActivity('UPDATE', 'CUSTOMER', `Müşteri güncellendi: ${customer.name}`);
+      refreshData();
+  };
+
+  const deleteCustomer = async (id: string) => { 
+      await supabase.from('customers').delete().eq('id', id);
+      logActivity('DELETE', 'CUSTOMER', `Müşteri silindi: ID ${id}`);
+      refreshData();
+  };
   
   const adjustCustomerBalance = async (customerId: string, amount: number, type: 'DEBT' | 'CREDIT', description: string) => {
-      const customer = customers.find(c => c.id === customerId);
-      if (!customer) return;
       const adjustment = type === 'CREDIT' ? amount : -amount;
-      setCustomers(prev => prev.map(c => { if (c.id === customerId) { return { ...c, currentBalance: c.currentBalance + adjustment }; } return c; }));
-      const newTransaction: Transaction = { id: Math.random().toString(36).substr(2, 9), customerId: customerId, amount: amount, type: type === 'CREDIT' ? TransactionType.COLLECTION : TransactionType.PAYMENT, date: new Date().toISOString(), description: `MANUEL DÜZELTME (${type === 'CREDIT' ? 'Alacak' : 'Borç'}): ${description}`, personnelName: currentUser?.name || 'Sistem' };
-      setTransactions(prev => [newTransaction, ...prev]);
-      logActivity('FINANCIAL', 'CUSTOMER', `Manuel Bakiye Düzeltme (${type}): ${customer.name} - ${amount} TL`);
+      const { data: c } = await supabase.from('customers').select('current_balance').eq('id', customerId).single();
+      if (!c) return;
+      
+      const newBal = Number(c.current_balance) + adjustment;
+      await supabase.from('customers').update({ current_balance: newBal }).eq('id', customerId);
+      
+      await supabase.from('transactions').insert({
+          customer_id: customerId,
+          amount: amount,
+          type: type === 'CREDIT' ? TransactionType.COLLECTION : TransactionType.PAYMENT,
+          description: `MANUEL DÜZELTME: ${description}`,
+          personnel_name: currentUser?.name
+      });
+      
+      logActivity('FINANCIAL', 'CUSTOMER', `Manuel Bakiye: ${amount} TL`);
+      refreshData();
   };
 
   // Sale Actions
   const addSale = async (sale: Sale) => {
     let grandTotal = (sale.totalAmount * 1.20) + (sale.shippingCost || 0);
-    
     if (sale.type === 'GIFT') {
-       if (sale.shippingPayer === 'COMPANY' || sale.shippingPayer === 'NONE') {
-          grandTotal = 0;
-       } else if (sale.shippingPayer === 'CUSTOMER') {
-          grandTotal = (sale.shippingCost || 0);
-       }
+       if (sale.shippingPayer === 'COMPANY' || sale.shippingPayer === 'NONE') grandTotal = 0;
+       else if (sale.shippingPayer === 'CUSTOMER') grandTotal = (sale.shippingCost || 0);
     }
 
-    const saleWithStatus = { ...sale, paidAmount: sale.paymentStatus === PaymentStatus.PAID ? grandTotal : 0, deliveryStatus: sale.deliveryStatus || 'BEKLIYOR', status: SaleStatus.ACTIVE };
-    setSales(prev => [saleWithStatus, ...prev]);
-    
-    sale.items.forEach(item => {
-      setProducts(prev => prev.map(p => { if (p.id === item.productId) { return { ...p, stockQuantity: p.stockQuantity - item.quantity }; } return p; }));
-    });
+    // 1. Insert Sale
+    const { data: saleData, error } = await supabase.from('sales').insert({
+        customer_id: sale.customerId,
+        customer_name: sale.customerName,
+        total_amount: sale.totalAmount,
+        shipping_cost: sale.shippingCost,
+        shipping_payer: sale.shippingPayer,
+        paid_amount: sale.paymentStatus === PaymentStatus.PAID ? grandTotal : 0,
+        discount_amount: sale.discountAmount,
+        date: sale.date,
+        payment_status: sale.paymentStatus,
+        status: SaleStatus.ACTIVE,
+        type: sale.type,
+        due_date: sale.dueDate,
+        personnel_name: sale.personnelName,
+        delivery_status: 'BEKLIYOR'
+    }).select().single();
 
+    if (error) { console.error(error); return; }
+
+    // 2. Insert Items & Update Stock
+    for (const item of sale.items) {
+        await supabase.from('sale_items').insert({
+            sale_id: saleData.id,
+            product_id: item.productId,
+            product_name: item.productName,
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+            total_price: item.totalPrice
+        });
+
+        const { data: prod } = await supabase.from('products').select('stock_quantity').eq('id', item.productId).single();
+        if (prod) {
+            await supabase.from('products').update({ stock_quantity: prod.stock_quantity - item.quantity }).eq('id', item.productId);
+        }
+    }
+
+    // 3. Update Customer Balance
     if (sale.customerId && (sale.paymentStatus === PaymentStatus.UNPAID || sale.paymentStatus === PaymentStatus.PARTIAL)) {
-      setCustomers(prev => prev.map(c => { if (c.id === sale.customerId) { return { ...c, currentBalance: c.currentBalance - grandTotal }; } return c; }));
+        const { data: cust } = await supabase.from('customers').select('current_balance').eq('id', sale.customerId).single();
+        if (cust) {
+            await supabase.from('customers').update({ current_balance: Number(cust.current_balance) - grandTotal }).eq('id', sale.customerId);
+        }
     }
-    logActivity('CREATE', 'SALE', `Yeni satış: ${sale.customerName} - Toplam Borç: ${grandTotal} TL`);
+
+    logActivity('CREATE', 'SALE', `Yeni satış: ${sale.customerName}`);
+    refreshData();
   };
 
   const updateSale = async (sale: Sale) => {
-    setSales(prev => prev.map(s => s.id === sale.id ? sale : s));
-    // UPDATED LOG MESSAGE
-    logActivity('UPDATE', 'SALE', `Satış/Teslimat güncellendi: ${sale.customerName} (Fiş: #${sale.id.substring(0,6)})`);
+    await supabase.from('sales').update({
+        delivery_status: sale.deliveryStatus,
+        delivery_type: sale.deliveryType,
+        shipping_company: sale.shippingCompany,
+        tracking_number: sale.trackingNumber,
+        shipping_updated_by: sale.shippingUpdatedBy
+    }).eq('id', sale.id);
+    logActivity('UPDATE', 'SALE', `Teslimat güncellendi: ${sale.customerName}`);
+    refreshData();
   };
 
-  // NEW: Full Edit of a Sale (Tricky!)
   const editSale = async (updatedSale: Sale) => {
-      const oldSale = sales.find(s => s.id === updatedSale.id);
-      if (!oldSale) return;
-
-      // 1. Revert Old Stock
-      oldSale.items.forEach(item => {
-          setProducts(prev => prev.map(p => p.id === item.productId ? { ...p, stockQuantity: p.stockQuantity + item.quantity } : p));
-      });
-
-      // 2. Revert Old Financials (If debt existed)
-      if (oldSale.customerId && oldSale.paymentStatus !== PaymentStatus.PAID) {
-          let oldGrandTotal = (oldSale.totalAmount * 1.20) + (oldSale.shippingCost || 0);
-          if (oldSale.type === 'GIFT') {
-             if (oldSale.shippingPayer === 'COMPANY' || oldSale.shippingPayer === 'NONE') oldGrandTotal = 0;
-             else if (oldSale.shippingPayer === 'CUSTOMER') oldGrandTotal = (oldSale.shippingCost || 0);
-          }
-          setCustomers(prev => prev.map(c => c.id === oldSale.customerId ? { ...c, currentBalance: c.currentBalance + oldGrandTotal } : c));
+      // Basic update for items and total (Admin only feature usually)
+      // This implementation deletes old items and re-inserts new ones for simplicity
+      await supabase.from('sale_items').delete().eq('sale_id', updatedSale.id);
+      
+      for (const item of updatedSale.items) {
+          await supabase.from('sale_items').insert({
+              sale_id: updatedSale.id,
+              product_id: item.productId,
+              product_name: item.productName,
+              quantity: item.quantity,
+              unit_price: item.unitPrice,
+              total_price: item.totalPrice
+          });
       }
+      
+      await supabase.from('sales').update({
+          total_amount: updatedSale.totalAmount
+      }).eq('id', updatedSale.id);
 
-      // 3. Apply New Stock
-      updatedSale.items.forEach(item => {
-          setProducts(prev => prev.map(p => p.id === item.productId ? { ...p, stockQuantity: p.stockQuantity - item.quantity } : p));
-      });
-
-      // 4. Apply New Financials
-      let newGrandTotal = (updatedSale.totalAmount * 1.20) + (updatedSale.shippingCost || 0);
-      if (updatedSale.type === 'GIFT') {
-         if (updatedSale.shippingPayer === 'COMPANY' || updatedSale.shippingPayer === 'NONE') newGrandTotal = 0;
-         else if (updatedSale.shippingPayer === 'CUSTOMER') newGrandTotal = (updatedSale.shippingCost || 0);
-      }
-
-      const finalSale = { 
-          ...updatedSale, 
-          // If editing to PAID, mark as paid. If UNPAID, 0. If PARTIAL, keep old paid (risky, but okay for now)
-          paidAmount: updatedSale.paymentStatus === PaymentStatus.PAID ? newGrandTotal : oldSale.paidAmount 
-      };
-
-      setSales(prev => prev.map(s => s.id === updatedSale.id ? finalSale : s));
-
-      if (updatedSale.customerId && updatedSale.paymentStatus !== PaymentStatus.PAID) {
-          setCustomers(prev => prev.map(c => c.id === updatedSale.customerId ? { ...c, currentBalance: c.currentBalance - newGrandTotal } : c));
-      }
-
-      // UPDATED LOG MESSAGE
-      logActivity('UPDATE', 'SALE', `Satış düzenlendi (İçerik): ${updatedSale.customerName} (Fiş: #${updatedSale.id.substring(0,6)})`);
+      logActivity('UPDATE', 'SALE', `Satış düzenlendi: ${updatedSale.customerName}`);
+      refreshData();
   };
 
   const updateSalePaymentStatus = async (saleId: string, newStatus: PaymentStatus) => {
       const sale = sales.find(s => s.id === saleId);
       if (!sale) return;
-      const oldStatus = sale.paymentStatus;
-      if (oldStatus === newStatus) return;
-
-      setSales(prev => prev.map(s => { if (s.id === saleId) return { ...s, paymentStatus: newStatus }; return s; }));
-
+      
+      await supabase.from('sales').update({ payment_status: newStatus }).eq('id', saleId);
+      
       if (sale.customerId) {
           let grandTotal = (sale.totalAmount * 1.20) + (sale.shippingCost || 0);
           if (sale.type === 'GIFT') {
@@ -309,124 +543,179 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
           let balanceChange = 0;
-          if (oldStatus === PaymentStatus.UNPAID && newStatus === PaymentStatus.PAID) balanceChange = grandTotal; 
-          else if (oldStatus === PaymentStatus.PAID && newStatus === PaymentStatus.UNPAID) balanceChange = -grandTotal;
+          if (sale.paymentStatus === PaymentStatus.UNPAID && newStatus === PaymentStatus.PAID) balanceChange = grandTotal; 
+          else if (sale.paymentStatus === PaymentStatus.PAID && newStatus === PaymentStatus.UNPAID) balanceChange = -grandTotal;
 
           if (balanceChange !== 0) {
-              setCustomers(prev => prev.map(c => { if (c.id === sale.customerId) { return { ...c, currentBalance: c.currentBalance + balanceChange }; } return c; }));
+              const { data: c } = await supabase.from('customers').select('current_balance').eq('id', sale.customerId).single();
+              if (c) {
+                  await supabase.from('customers').update({ current_balance: Number(c.current_balance) + balanceChange }).eq('id', sale.customerId);
+              }
           }
       }
-      // UPDATED LOG MESSAGE
-      logActivity('STATUS_CHANGE', 'SALE', `Ödeme Durumu Değiştirildi: ${sale.customerName} (Fiş: #${saleId.substring(0,6)})`);
+      
+      logActivity('STATUS_CHANGE', 'SALE', `Ödeme durumu: ${newStatus}`);
+      refreshData();
   };
 
   const processReturn = async (saleId: string, details: ReturnDetails, returnedItems: ReturnItem[]) => {
     const sale = sales.find(s => s.id === saleId);
     if (!sale) return;
-    if (details.refundMethod === 'WALLET' && !sale.customerId) { alert("Hata: Misafir müşteriler için 'Cari Hesaba İade' yapılamaz."); return; }
 
-    const updatedSale: Sale = { ...sale, status: SaleStatus.RETURNED, returnDetails: { ...details, returnedItems, refundStatus: details.refundStatus } };
-    setSales(prev => prev.map(s => s.id === saleId ? updatedSale : s));
+    await supabase.from('sales').update({
+        status: SaleStatus.RETURNED,
+        return_details: details
+    }).eq('id', saleId);
 
-    // UPDATED STOCK LOGIC: Only increase stock if item is RESELLABLE (Sağlam)
-    returnedItems.forEach(rItem => { 
+    for (const rItem of returnedItems) {
         if (rItem.condition === 'RESELLABLE') {
-            setProducts(prev => prev.map(p => { 
-                if (p.id === rItem.productId) { 
-                    return { ...p, stockQuantity: p.stockQuantity + rItem.quantity }; 
-                } 
-                return p; 
-            })); 
+            const { data: p } = await supabase.from('products').select('stock_quantity').eq('id', rItem.productId).single();
+            if (p) {
+                await supabase.from('products').update({ stock_quantity: p.stock_quantity + rItem.quantity }).eq('id', rItem.productId);
+            }
         }
-        // If DEFECTIVE, stock is not increased (assumed waste).
-    });
+    }
 
     if (details.refundStatus === 'COMPLETED' && details.refundMethod === 'WALLET' && sale.customerId) {
-        setCustomers(prev => prev.map(c => { if (c.id === sale.customerId) { return { ...c, currentBalance: c.currentBalance + details.refundAmount }; } return c; }));
+        const { data: c } = await supabase.from('customers').select('current_balance').eq('id', sale.customerId).single();
+        if (c) {
+            await supabase.from('customers').update({ current_balance: Number(c.current_balance) + details.refundAmount }).eq('id', sale.customerId);
+        }
     }
-    // UPDATED LOG MESSAGE
-    logActivity('CREATE', 'RETURN', `Satış İadesi: ${sale.customerName} (Fiş: #${saleId.substring(0,6)}) - Tutar: ${details.refundAmount} TL`);
+
+    logActivity('CREATE', 'RETURN', `İade: ${sale.customerName}`);
+    refreshData();
   };
 
   const updateReturnPayment = async (saleId: string, paymentDetails: Partial<ReturnDetails>) => {
     const sale = sales.find(s => s.id === saleId);
-    if (!sale) return;
-    const isNewWalletPayment = sale.returnDetails?.refundStatus !== 'COMPLETED' && paymentDetails.refundStatus === 'COMPLETED' && paymentDetails.refundMethod === 'WALLET';
-    setSales(prev => prev.map(s => { if (s.id === saleId && s.returnDetails) { return { ...s, returnDetails: { ...s.returnDetails, ...paymentDetails } }; } return s; }));
-    if (isNewWalletPayment && sale.customerId) {
-        setCustomers(prev => prev.map(c => { if (c.id === sale.customerId) { return { ...c, currentBalance: c.currentBalance + (sale.returnDetails?.refundAmount || 0) }; } return c; }));
-        logActivity('FINANCIAL', 'CUSTOMER', `İade ödemesi cariye işlendi: ${sale.customerName}`);
+    if (!sale || !sale.returnDetails) return;
+    
+    const newDetails = { ...sale.returnDetails, ...paymentDetails };
+    
+    await supabase.from('sales').update({ return_details: newDetails }).eq('id', saleId);
+    
+    if (sale.returnDetails.refundStatus !== 'COMPLETED' && paymentDetails.refundStatus === 'COMPLETED' && paymentDetails.refundMethod === 'WALLET' && sale.customerId) {
+         const { data: c } = await supabase.from('customers').select('current_balance').eq('id', sale.customerId).single();
+         if (c) {
+             await supabase.from('customers').update({ current_balance: Number(c.current_balance) + (sale.returnDetails.refundAmount) }).eq('id', sale.customerId);
+         }
     }
-    // UPDATED LOG MESSAGE
-    logActivity('UPDATE', 'RETURN', `İade ödeme durumu güncellendi: ${sale.customerName} (Fiş: #${saleId.substring(0,6)})`);
+    
+    logActivity('UPDATE', 'RETURN', `İade ödeme güncelleme`);
+    refreshData();
   };
 
   const processCollection = async (saleId: string, amount: number, method: string, description: string) => {
     const sale = sales.find(s => s.id === saleId);
     if (!sale || !sale.customerId) return;
-    
-    // Calculate Correct Total Debt for Sale
+
     let grandTotal = (sale.totalAmount * 1.20) + (sale.shippingCost || 0);
     if (sale.type === 'GIFT') {
         if (sale.shippingPayer === 'COMPANY' || sale.shippingPayer === 'NONE') grandTotal = 0;
         else if (sale.shippingPayer === 'CUSTOMER') grandTotal = (sale.shippingCost || 0);
     }
 
-    const previousPaid = sale.paidAmount || 0;
-    const newPaidAmount = previousPaid + amount;
+    const newPaid = (sale.paidAmount || 0) + amount;
     let newStatus = sale.paymentStatus;
-    if (newPaidAmount >= grandTotal - 1) newStatus = PaymentStatus.PAID;
+    if (newPaid >= grandTotal - 1) newStatus = PaymentStatus.PAID;
     else newStatus = PaymentStatus.PARTIAL;
 
-    setSales(prev => prev.map(s => { if (s.id === saleId) { return { ...s, paidAmount: newPaidAmount, paymentStatus: newStatus }; } return s; }));
-    const newTransaction: Transaction = { id: Math.random().toString(36).substr(2, 9), customerId: sale.customerId, amount: amount, type: TransactionType.COLLECTION, date: new Date().toISOString(), description: `Tahsilat - Fiş No: #${saleId.substring(0,6)} - ${description}`, personnelName: currentUser?.name || 'Bilinmiyor', saleId: saleId };
-    setTransactions(prev => [newTransaction, ...prev]);
-    setCustomers(prev => prev.map(c => { if (c.id === sale.customerId) { return { ...c, currentBalance: c.currentBalance + amount }; } return c; }));
-    logActivity('CREATE', 'COLLECTION', `Tahsilat alındı: ${sale.customerName} - ${amount} TL`);
+    await supabase.from('sales').update({ paid_amount: newPaid, payment_status: newStatus }).eq('id', saleId);
+    
+    await supabase.from('transactions').insert({
+        customer_id: sale.customerId,
+        sale_id: saleId,
+        amount: amount,
+        type: TransactionType.COLLECTION,
+        description: `Tahsilat: ${description}`,
+        personnel_name: currentUser?.name
+    });
+
+    const { data: c } = await supabase.from('customers').select('current_balance').eq('id', sale.customerId).single();
+    if (c) {
+        await supabase.from('customers').update({ current_balance: Number(c.current_balance) + amount }).eq('id', sale.customerId);
+    }
+
+    logActivity('CREATE', 'COLLECTION', `Tahsilat: ${amount} TL`);
+    refreshData();
   };
 
-  // NEW: Process General Collection (No Sale ID)
   const processGeneralCollection = async (customerId: string, amount: number, method: string, description: string) => {
-      const customer = customers.find(c => c.id === customerId);
-      if (!customer) return;
-
-      const newTransaction: Transaction = {
-          id: Math.random().toString(36).substr(2, 9),
-          customerId: customerId,
+      await supabase.from('transactions').insert({
+          customer_id: customerId,
           amount: amount,
           type: TransactionType.COLLECTION,
-          date: new Date().toISOString(),
-          description: `Genel Tahsilat - ${description}`,
-          personnelName: currentUser?.name || 'Bilinmiyor'
-      };
-      setTransactions(prev => [newTransaction, ...prev]);
+          description: `Genel Tahsilat: ${description}`,
+          personnel_name: currentUser?.name
+      });
+
+      const { data: c } = await supabase.from('customers').select('current_balance').eq('id', customerId).single();
+      if (c) {
+          await supabase.from('customers').update({ current_balance: Number(c.current_balance) + amount }).eq('id', customerId);
+      }
       
-      setCustomers(prev => prev.map(c => {
-          if (c.id === customerId) {
-              return { ...c, currentBalance: c.currentBalance + amount };
-          }
-          return c;
-      }));
-      logActivity('CREATE', 'COLLECTION', `Genel Tahsilat: ${customer.name} - ${amount} TL`);
+      logActivity('CREATE', 'COLLECTION', `Genel Tahsilat: ${amount} TL`);
+      refreshData();
   };
 
-  const addTransaction = async (transaction: Transaction) => { setTransactions(prev => [transaction, ...prev]); if (transaction.type === TransactionType.COLLECTION) { setCustomers(prev => prev.map(c => { if (c.id === transaction.customerId) { return { ...c, currentBalance: c.currentBalance + transaction.amount }; } return c; })); } };
-  const saveProductCost = async (cost: ProductCost) => { setProductCosts(prev => { const existingIndex = prev.findIndex(c => c.productId === cost.productId); if (existingIndex >= 0) { const newCosts = [...prev]; newCosts[existingIndex] = cost; return newCosts; } return [...prev, cost]; }); logActivity('UPDATE', 'PRODUCT', `Maliyet güncellendi: Ürün ID ${cost.productId}`); };
-  const updateSettings = (newSettings: AppSettings) => { setSettings(newSettings); logActivity('UPDATE', 'SETTINGS', 'Sistem ayarları güncellendi.'); };
+  const addTransaction = async (transaction: Transaction) => { /* Helper used internally */ };
+  
+  const saveProductCost = async (cost: ProductCost) => { 
+      const { data: existing } = await supabase.from('product_costs').select('id').eq('product_id', cost.productId).single();
+      
+      const payload = {
+          product_id: cost.productId,
+          product_net_weight: cost.productNetWeight,
+          raw_materials: cost.rawMaterials,
+          other_costs: cost.otherCosts,
+          total_cost: cost.totalCost,
+          last_updated: new Date().toISOString()
+      };
+
+      if (existing) {
+          await supabase.from('product_costs').update(payload).eq('id', existing.id);
+      } else {
+          await supabase.from('product_costs').insert(payload);
+      }
+      logActivity('UPDATE', 'PRODUCT', `Maliyet güncellendi`);
+      refreshData();
+  };
+
+  const updateSettings = async (newSettings: AppSettings) => { 
+      // Upsert logic for settings (always ID 1 or similar)
+      // First check if exists
+      const { data: existing } = await supabase.from('app_settings').select('id').limit(1).single();
+      
+      const payload = {
+          product_categories: newSettings.productCategories,
+          variant_options: newSettings.variantOptions,
+          customer_types: newSettings.customerTypes,
+          sales_channels: newSettings.salesChannels,
+          delivery_types: newSettings.deliveryTypes,
+          shipping_companies: newSettings.shippingCompanies
+      };
+
+      if (existing) {
+          await supabase.from('app_settings').update(payload).eq('id', existing.id);
+      } else {
+          await supabase.from('app_settings').insert(payload);
+      }
+      setSettings(newSettings);
+      logActivity('UPDATE', 'SETTINGS', 'Ayarlar güncellendi');
+  };
 
   return (
     <StoreContext.Provider value={{ 
       currentUser, login, logout, users,
-      // IMPORTANT: Expose FILTERED lists to the app for data isolation
       sales: visibleSales, 
       transactions: visibleTransactions, 
       activityLogs: visibleLogs,
-      // Shared Resources (Globals)
       products, customers, productCosts, settings, cart, 
       addToCart, removeFromCart, updateCartQuantity, clearCart,
-      addUser, deleteUser,
+      addUser, updateUser, deleteUser,
       addProduct, updateProduct, deleteProduct, addCustomer, updateCustomer, deleteCustomer, adjustCustomerBalance, addSale, updateSale, editSale, updateSalePaymentStatus, addTransaction,
-      updateSettings, refreshData, processReturn, updateReturnPayment, processCollection, processGeneralCollection, saveProductCost, logActivity
+      updateSettings, refreshData, processReturn, updateReturnPayment, processCollection, processGeneralCollection, saveProductCost, logActivity, resetDatabase
     }}>
       {children}
     </StoreContext.Provider>

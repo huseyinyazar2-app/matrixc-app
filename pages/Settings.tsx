@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { Plus, Trash2, Save, Tag, Layers, Users, Globe, Truck, MapPin, UserPlus, Lock, User, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, Save, Tag, Layers, Users, Globe, Truck, MapPin, UserPlus, Lock, User, ShieldCheck, Key, AlertTriangle } from 'lucide-react';
 import { UserRole } from '../types';
 
 export const Settings: React.FC = () => {
-  const { settings, updateSettings, addUser, users, deleteUser, currentUser } = useStore();
+  const { settings, updateSettings, addUser, users, deleteUser, updateUser, currentUser, resetDatabase } = useStore();
   
   const [categories, setCategories] = useState<string[]>(settings.productCategories);
   const [variants, setVariants] = useState<string[]>(settings.variantOptions);
@@ -25,6 +25,11 @@ export const Settings: React.FC = () => {
   // New User States
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+
+  // Password Change State
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
   
   const [showSuccess, setShowSuccess] = useState(false);
 
@@ -73,6 +78,44 @@ export const Settings: React.FC = () => {
         }
         await deleteUser(id);
     }
+  };
+
+  const handleChangePassword = async () => {
+     if (!currentUser) return;
+     if (!currentPasswordInput || !newPasswordInput || !confirmPasswordInput) {
+         alert('Lütfen tüm alanları doldurunuz.');
+         return;
+     }
+     
+     if (currentPasswordInput !== currentUser.password) {
+         alert('Mevcut şifreniz yanlış!');
+         return;
+     }
+
+     if (newPasswordInput !== confirmPasswordInput) {
+         alert('Yeni şifreler eşleşmiyor!');
+         return;
+     }
+
+     await updateUser({
+         ...currentUser,
+         password: newPasswordInput
+     });
+
+     setCurrentPasswordInput('');
+     setNewPasswordInput('');
+     setConfirmPasswordInput('');
+     alert('Şifreniz başarıyla güncellendi.');
+  };
+
+  const handleFactoryReset = () => {
+      const confirm1 = window.confirm("DİKKAT! Tüm veriler (ürünler, müşteriler, satışlar) kalıcı olarak silinecek ve sistem sıfırlanacaktır. Bu işlem geri alınamaz!");
+      if (confirm1) {
+          const confirm2 = window.confirm("Emin misiniz? Onaylıyorsanız sistem yeniden başlatılacak.");
+          if (confirm2) {
+              resetDatabase();
+          }
+      }
   };
 
   const addItem = (type: 'cat' | 'var' | 'cust' | 'chan' | 'deliv' | 'ship') => {
@@ -135,77 +178,103 @@ export const Settings: React.FC = () => {
         )}
       </div>
 
-      {/* USER MANAGEMENT SECTION */}
-      <div className="bg-indigo-50/50 p-6 rounded-xl border border-indigo-100 shadow-sm">
-         <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
-            <UserPlus size={20} className="mr-2 text-indigo-600" /> Personel Yönetimi
-         </h2>
-         
-         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Add User Form */}
-            <div className="bg-white p-4 rounded-xl border border-indigo-200">
-               <h3 className="text-xs font-bold text-indigo-800 uppercase mb-3">Yeni Personel Ekle</h3>
-               <div className="space-y-3">
-                  <div>
-                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Kullanıcı Adı</label>
-                     <div className="relative">
-                        <User className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
-                        <input 
-                           type="text" className="w-full pl-8 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                           placeholder="kullaniciadi"
-                           value={newUsername} onChange={e => setNewUsername(e.target.value)}
-                        />
-                     </div>
-                  </div>
-                  <div>
-                     <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Şifre</label>
-                     <div className="relative">
-                        <Lock className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
-                        <input 
-                           type="text" className="w-full pl-8 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
-                           placeholder="******"
-                           value={newPassword} onChange={e => setNewPassword(e.target.value)}
-                        />
-                     </div>
-                  </div>
-                  <button 
-                     onClick={handleAddUser}
-                     className="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-indigo-700"
-                  >
-                     Kullanıcıyı Oluştur
-                  </button>
-               </div>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* PASSWORD CHANGE SECTION */}
+        <div className="bg-yellow-50/50 p-6 rounded-xl border border-yellow-200 shadow-sm">
+             <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                <Key size={20} className="mr-2 text-yellow-600" /> Şifre İşlemleri
+             </h2>
+             <div className="bg-white p-4 rounded-xl border border-yellow-200 space-y-3">
+                 <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Mevcut Şifre</label>
+                    <input type="password" value={currentPasswordInput} onChange={e => setCurrentPasswordInput(e.target.value)} className="w-full p-2 border rounded-lg text-sm" />
+                 </div>
+                 <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Yeni Şifre</label>
+                    <input type="password" value={newPasswordInput} onChange={e => setNewPasswordInput(e.target.value)} className="w-full p-2 border rounded-lg text-sm" />
+                 </div>
+                 <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Yeni Şifre (Tekrar)</label>
+                    <input type="password" value={confirmPasswordInput} onChange={e => setConfirmPasswordInput(e.target.value)} className="w-full p-2 border rounded-lg text-sm" />
+                 </div>
+                 <button onClick={handleChangePassword} className="w-full py-2 bg-yellow-600 text-white rounded-lg font-bold text-xs uppercase hover:bg-yellow-700">Şifremi Güncelle</button>
+             </div>
+        </div>
 
-            {/* User List */}
-            <div className="md:col-span-2">
-               <h3 className="text-xs font-bold text-gray-500 uppercase mb-3 px-1">Mevcut Kullanıcılar</h3>
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {users.map(u => (
-                     <div key={u.id} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm">
-                        <div className="flex items-center">
-                           <div className={`p-2 rounded-full mr-3 ${u.role === UserRole.ADMIN ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
-                              {u.role === UserRole.ADMIN ? <ShieldCheck size={16} /> : <User size={16} />}
-                           </div>
-                           <div>
-                              <p className="font-bold text-sm text-slate-800">{u.username}</p>
-                              <p className="text-[10px] text-gray-500 uppercase font-bold">{u.role === UserRole.ADMIN ? 'YÖNETİCİ' : 'PERSONEL'}</p>
-                           </div>
+        {/* USER MANAGEMENT SECTION */}
+        <div className="bg-indigo-50/50 p-6 rounded-xl border border-indigo-100 shadow-sm">
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                <UserPlus size={20} className="mr-2 text-indigo-600" /> Personel Yönetimi
+            </h2>
+            
+            <div className="grid grid-cols-1 gap-6">
+                {/* Add User Form */}
+                <div className="bg-white p-4 rounded-xl border border-indigo-200">
+                <h3 className="text-xs font-bold text-indigo-800 uppercase mb-3">Yeni Personel Ekle</h3>
+                <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Kullanıcı Adı</label>
+                            <div className="relative">
+                                <User className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+                                <input 
+                                type="text" className="w-full pl-8 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="kullaniciadi"
+                                value={newUsername} onChange={e => setNewUsername(e.target.value)}
+                                />
+                            </div>
                         </div>
-                        {u.role !== UserRole.ADMIN && (
-                           <button 
-                              onClick={() => handleDeleteUser(u.id)}
-                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                              title="Kullanıcıyı Sil"
-                           >
-                              <Trash2 size={16} />
-                           </button>
-                        )}
-                     </div>
-                  ))}
-               </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Şifre</label>
+                            <div className="relative">
+                                <Lock className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+                                <input 
+                                type="text" className="w-full pl-8 p-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="******"
+                                value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleAddUser}
+                        className="w-full py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold uppercase hover:bg-indigo-700"
+                    >
+                        Kullanıcıyı Oluştur
+                    </button>
+                </div>
+                </div>
+
+                {/* User List */}
+                <div>
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-3 px-1">Mevcut Kullanıcılar</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {users.map(u => (
+                        <div key={u.id} className="bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm">
+                            <div className="flex items-center">
+                            <div className={`p-2 rounded-full mr-3 ${u.role === UserRole.ADMIN ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
+                                {u.role === UserRole.ADMIN ? <ShieldCheck size={16} /> : <User size={16} />}
+                            </div>
+                            <div>
+                                <p className="font-bold text-sm text-slate-800">{u.username}</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-bold">{u.role === UserRole.ADMIN ? 'YÖNETİCİ' : 'PERSONEL'}</p>
+                            </div>
+                            </div>
+                            {u.role !== UserRole.ADMIN && (
+                            <button 
+                                onClick={() => handleDeleteUser(u.id)}
+                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                title="Kullanıcıyı Sil"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                </div>
             </div>
-         </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -353,6 +422,24 @@ export const Settings: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* DANGER ZONE - DATA RESET */}
+      <div className="bg-red-50 p-6 rounded-xl border border-red-200 shadow-sm mt-12">
+          <h2 className="text-lg font-bold text-red-700 mb-2 flex items-center">
+              <AlertTriangle size={20} className="mr-2" /> Tehlikeli Bölge
+          </h2>
+          <p className="text-sm text-red-600 mb-4">
+              Aşağıdaki işlem, tarayıcınızda kayıtlı olan tüm verileri (müşteriler, satışlar, ürünler vb.) kalıcı olarak silecektir. 
+              Bu işlem, uygulamayı ilk yüklediğiniz duruma (fabrika ayarlarına) döndürür.
+          </p>
+          <button 
+              onClick={handleFactoryReset}
+              className="bg-red-600 text-white px-6 py-3 rounded-lg font-bold text-sm hover:bg-red-700 transition-colors shadow flex items-center"
+          >
+              <Trash2 size={18} className="mr-2" /> TÜM VERİLERİ SIFIRLA (FABRİKA AYARLARI)
+          </button>
+      </div>
+
     </div>
   );
 };
