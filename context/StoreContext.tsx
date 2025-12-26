@@ -314,13 +314,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const logout = () => setCurrentUser(null);
   
   const addUser = async (user: User) => { 
-      await supabase.from('users').insert({ username: user.username, password: user.password, name: user.name, role: user.role });
+      const { error } = await supabase.from('users').insert({ username: user.username, password: user.password, name: user.name, role: user.role });
+      if (error) { alert("Hata: " + error.message); return; }
       logActivity('CREATE', 'SETTINGS', `Yeni kullanıcı eklendi: ${user.username}`);
       refreshData();
   };
   
   const updateUser = async (updatedUser: User) => {
-      await supabase.from('users').update({ password: updatedUser.password }).eq('id', updatedUser.id);
+      const { error } = await supabase.from('users').update({ password: updatedUser.password }).eq('id', updatedUser.id);
+      if (error) { alert("Hata: " + error.message); return; }
       if (currentUser && currentUser.id === updatedUser.id) { setCurrentUser(updatedUser); }
       logActivity('UPDATE', 'SETTINGS', `Kullanıcı güncellendi: ${updatedUser.username}`);
       refreshData();
@@ -328,14 +330,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const deleteUser = async (id: string) => { 
       if (currentUser && currentUser.id === id) { alert("Kendinizi silemezsiniz!"); return; } 
-      await supabase.from('users').delete().eq('id', id);
+      const { error } = await supabase.from('users').delete().eq('id', id);
+      if (error) { alert("Hata: " + error.message); return; }
       logActivity('DELETE', 'SETTINGS', `Kullanıcı silindi: ID ${id}`);
       refreshData();
   };
 
   // Product Actions
   const addProduct = async (product: Product) => {
-      const { data } = await supabase.from('products').insert({
+      const { data, error } = await supabase.from('products').insert({
           base_name: product.baseName,
           variant_name: product.variantName,
           description: product.description,
@@ -346,30 +349,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           created_by: product.createdBy
       }).select();
       
-      if (data) {
-          logActivity('CREATE', 'PRODUCT', `Yeni ürün: ${product.baseName}`);
-          refreshData();
-          return true;
+      if (error) {
+          console.error(error);
+          alert("Ürün eklenirken hata: " + error.message);
+          return false;
       }
-      refreshData(); // Ensure data is refreshed even if select fails
+      
+      logActivity('CREATE', 'PRODUCT', `Yeni ürün: ${product.baseName}`);
+      refreshData();
       return true;
   };
 
   const updateProduct = async (product: Product) => { 
-      await supabase.from('products').update({
+      const { error } = await supabase.from('products').update({
           base_name: product.baseName,
           variant_name: product.variantName,
           sell_price: product.sellPrice,
           stock_quantity: product.stockQuantity,
           is_active: product.isActive
       }).eq('id', product.id);
+      
+      if (error) { alert("Hata: " + error.message); return; }
       logActivity('UPDATE', 'PRODUCT', `Ürün güncellendi: ${product.baseName}`);
       refreshData();
   };
   
   const deleteProduct = async (id: string) => {
       // Soft Delete (Archive)
-      await supabase.from('products').update({ is_archived: true, is_active: false }).eq('id', id);
+      const { error } = await supabase.from('products').update({ is_archived: true, is_active: false }).eq('id', id);
+      if (error) { alert("Hata: " + error.message); return false; }
       logActivity('DELETE', 'PRODUCT', `Ürün arşivlendi: ID ${id}`);
       refreshData();
       return true;
@@ -377,7 +385,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Customer Actions
   const addCustomer = async (customer: Customer) => { 
-      await supabase.from('customers').insert({
+      const { error } = await supabase.from('customers').insert({
           name: customer.name,
           type: customer.type,
           sales_channel: customer.salesChannel,
@@ -390,12 +398,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           current_balance: 0,
           created_by: customer.createdBy
       });
+      if (error) { alert("Hata: " + error.message); return; }
       logActivity('CREATE', 'CUSTOMER', `Yeni müşteri: ${customer.name}`);
       refreshData();
   };
 
   const updateCustomer = async (customer: Customer) => { 
-      await supabase.from('customers').update({
+      const { error } = await supabase.from('customers').update({
           name: customer.name,
           type: customer.type,
           sales_channel: customer.salesChannel,
@@ -406,12 +415,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           address: customer.address,
           description: customer.description
       }).eq('id', customer.id);
+      if (error) { alert("Hata: " + error.message); return; }
       logActivity('UPDATE', 'CUSTOMER', `Müşteri güncellendi: ${customer.name}`);
       refreshData();
   };
 
   const deleteCustomer = async (id: string) => { 
-      await supabase.from('customers').delete().eq('id', id);
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      if (error) { alert("Hata: " + error.message); return; }
       logActivity('DELETE', 'CUSTOMER', `Müşteri silindi: ID ${id}`);
       refreshData();
   };
@@ -462,7 +473,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         delivery_status: 'BEKLIYOR'
     }).select().single();
 
-    if (error) { console.error(error); return; }
+    if (error) { 
+        console.error(error); 
+        alert("Satış kaydedilirken hata oluştu: " + error.message);
+        return; 
+    }
 
     // 2. Insert Items & Update Stock
     for (const item of sale.items) {
@@ -494,20 +509,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateSale = async (sale: Sale) => {
-    await supabase.from('sales').update({
+    const { error } = await supabase.from('sales').update({
         delivery_status: sale.deliveryStatus,
         delivery_type: sale.deliveryType,
         shipping_company: sale.shippingCompany,
         tracking_number: sale.trackingNumber,
         shipping_updated_by: sale.shippingUpdatedBy
     }).eq('id', sale.id);
+    if (error) { alert("Hata: " + error.message); return; }
     logActivity('UPDATE', 'SALE', `Teslimat güncellendi: ${sale.customerName}`);
     refreshData();
   };
 
   const editSale = async (updatedSale: Sale) => {
       // Basic update for items and total (Admin only feature usually)
-      // This implementation deletes old items and re-inserts new ones for simplicity
       await supabase.from('sale_items').delete().eq('sale_id', updatedSale.id);
       
       for (const item of updatedSale.items) {
@@ -533,7 +548,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const sale = sales.find(s => s.id === saleId);
       if (!sale) return;
       
-      await supabase.from('sales').update({ payment_status: newStatus }).eq('id', saleId);
+      const { error } = await supabase.from('sales').update({ payment_status: newStatus }).eq('id', saleId);
+      if (error) { alert("Hata: " + error.message); return; }
       
       if (sale.customerId) {
           let grandTotal = (sale.totalAmount * 1.20) + (sale.shippingCost || 0);
@@ -562,10 +578,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const sale = sales.find(s => s.id === saleId);
     if (!sale) return;
 
-    await supabase.from('sales').update({
+    const { error } = await supabase.from('sales').update({
         status: SaleStatus.RETURNED,
         return_details: details
     }).eq('id', saleId);
+    if (error) { alert("Hata: " + error.message); return; }
 
     for (const rItem of returnedItems) {
         if (rItem.condition === 'RESELLABLE') {
