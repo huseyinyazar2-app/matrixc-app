@@ -1,9 +1,8 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useStore } from '../context/StoreContext';
 import { AlertTriangle, TrendingUp, Wallet, Box, Truck } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { generateBusinessInsights } from '../services/geminiService';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
@@ -11,36 +10,22 @@ import { UserRole, SaleStatus } from '../types';
 
 export const Dashboard: React.FC = () => {
   const { products, sales, customers, currentUser } = useStore();
-  const [insight, setInsight] = useState<string | null>(null);
-  const [loadingInsight, setLoadingInsight] = useState(false);
 
-  // --- CALCULATIONS ---
-
-  // 1. Total Revenue (Sales are already filtered by StoreContext for Personnel)
   const totalRevenue = sales.reduce((acc, s) => acc + s.totalAmount, 0);
 
-  // 2. Total Receivables (Conditional Logic)
   const totalReceivables = useMemo(() => {
       if (currentUser?.role === UserRole.ADMIN) {
-          // Admin: Sees Global Debt from Customer Ledger balances
           return customers.reduce((acc, c) => acc + (c.currentBalance < 0 ? Math.abs(c.currentBalance) : 0), 0);
       } else {
-          // Personnel: Sees only outstanding debt from THEIR OWN sales
           return sales.reduce((acc, sale) => {
               if (sale.status !== SaleStatus.ACTIVE) return acc;
-
-              // Calculate Grand Total for this specific sale
               let saleTotal = (sale.totalAmount * 1.20) + (sale.shippingCost || 0);
-              
-              // Handle Gift Logic
               if (sale.type === 'GIFT') {
                   if (sale.shippingPayer === 'COMPANY' || sale.shippingPayer === 'NONE') saleTotal = 0;
                   else if (sale.shippingPayer === 'CUSTOMER') saleTotal = (sale.shippingCost || 0);
               }
-
               const paid = sale.paidAmount || 0;
               const remaining = Math.max(0, saleTotal - paid);
-              
               return acc + remaining;
           }, 0);
       }
@@ -49,46 +34,17 @@ export const Dashboard: React.FC = () => {
   const lowStockProducts = products.filter(p => p.stockQuantity <= p.lowStockThreshold);
   const pendingShipments = sales.filter(s => s.deliveryStatus === 'BEKLIYOR');
 
-  // Chart Data (Last 7 sales)
   const chartData = sales.slice(0, 7).reverse().map(s => ({
     date: format(new Date(s.date), 'dd MMM', { locale: tr }),
     tutar: s.totalAmount
   }));
 
-  const handleAIAnalysis = async () => {
-    setLoadingInsight(true);
-    // For AI, if personnel, we might want to filter customers strictly associated with their sales, 
-    // but typically AI needs context. For now, passing data as is (sales is filtered).
-    const result = await generateBusinessInsights(sales, products, customers);
-    setInsight(result);
-    setLoadingInsight(false);
-  };
-
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto mb-20 sm:mb-0">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-800">Gösterge Paneli</h1>
-        <button 
-          onClick={handleAIAnalysis}
-          disabled={loadingInsight}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 flex items-center"
-        >
-          {loadingInsight ? 'Analiz Yapılıyor...' : '✨ Yapay Zeka Analizi'}
-        </button>
       </div>
 
-      {insight && (
-        <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-xl border border-purple-100 shadow-sm">
-          <h3 className="font-semibold text-purple-800 mb-2 flex items-center">
-            <span className="text-xl mr-2">🤖</span> Gemini İş Analizi
-          </h3>
-          <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-line">
-            {insight}
-          </div>
-        </div>
-      )}
-
-      {/* Bekleyen Kargo Uyarı Bannerı */}
       {pendingShipments.length > 0 && (
         <Link to="/shipping" className="block">
           <div className="bg-indigo-600 text-white p-4 rounded-xl shadow-lg flex items-center justify-between hover:bg-indigo-700 transition-all group">
