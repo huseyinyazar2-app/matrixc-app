@@ -339,6 +339,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Product Actions
   const addProduct = async (product: Product) => {
       const { data, error } = await supabase.from('products').insert({
+          id: product.id,
           base_name: product.baseName,
           variant_name: product.variantName,
           description: product.description,
@@ -386,6 +387,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Customer Actions
   const addCustomer = async (customer: Customer) => { 
       const { error } = await supabase.from('customers').insert({
+          id: customer.id,
           name: customer.name,
           type: customer.type,
           sales_channel: customer.salesChannel,
@@ -457,6 +459,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     // 1. Insert Sale
     const { data: saleData, error } = await supabase.from('sales').insert({
+        id: sale.id,
         customer_id: sale.customerId,
         customer_name: sale.customerName,
         total_amount: sale.totalAmount,
