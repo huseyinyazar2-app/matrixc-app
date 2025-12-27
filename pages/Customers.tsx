@@ -4,16 +4,9 @@ import { useStore } from '../context/StoreContext';
 import { Customer, PaymentStatus, Sale, UserRole, SaleStatus } from '../types';
 import { Phone, MapPin, Wallet, Plus, History, Building, User, Search, Filter, AlertCircle, ShoppingBag, Mail, Edit, Eye, CreditCard, UserCheck, Calendar, Trash2, ArrowLeftRight, Navigation, Truck } from 'lucide-react';
 import { format } from 'date-fns';
+import { trCities } from '../src/data/cities';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
-
-const turkishCities: Record<string, string[]> = {
-  'İstanbul': ['Kadıköy', 'Beşiktaş', 'Üsküdar', 'Maltepe', 'Şişli', 'Fatih', 'Beylikdüzü'],
-  'Ankara': ['Çankaya', 'Keçiören', 'Yenimahalle', 'Mamak', 'Etimesgut'],
-  'İzmir': ['Karşıyaka', 'Konak', 'Bornova', 'Buca', 'Çeşme'],
-  'Bursa': ['Nilüfer', 'Osmangazi', 'Yıldırım'],
-  'Antalya': ['Muratpaşa', 'Konyaaltı', 'Kepez', 'Alanya']
-};
 
 export const Customers: React.FC = () => {
   const { customers, products, sales, addCustomer, updateCustomer, deleteCustomer, addSale, adjustCustomerBalance, currentUser, settings } = useStore();
@@ -363,8 +356,29 @@ export const Customers: React.FC = () => {
                 <div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">E-Posta</label><input type="email" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary outline-none" value={newCustomer.email} onChange={e => setNewCustomer({...newCustomer, email: e.target.value})} /></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-5 rounded-xl border border-gray-200">
-                 <div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Şehir</label><select className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-sm outline-none" value={newCustomer.city} onChange={e => { setNewCustomer({ ...newCustomer, city: e.target.value, district: '' }); }}><option value="">Seçiniz</option>{Object.keys(turkishCities).map(city => <option key={city} value={city}>{city}</option>)}</select></div>
-                 <div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">İlçe</label><select className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-sm outline-none" value={newCustomer.district} onChange={e => setNewCustomer({...newCustomer, district: e.target.value})} disabled={!newCustomer.city}><option value="">Seçiniz</option>{newCustomer.city && turkishCities[newCustomer.city]?.map(district => <option key={district} value={district}>{district}</option>)}</select></div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Şehir</label>
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-sm outline-none" 
+                      value={newCustomer.city} 
+                      onChange={e => { setNewCustomer({ ...newCustomer, city: e.target.value, district: '' }); }}
+                    >
+                      <option value="">Seçiniz</option>
+                      {Object.keys(trCities).map(city => <option key={city} value={city}>{city}</option>)}
+                    </select>
+                 </div>
+                 <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">İlçe</label>
+                    <select 
+                      className="w-full border border-gray-300 rounded-lg p-2.5 bg-white text-sm outline-none" 
+                      value={newCustomer.district} 
+                      onChange={e => setNewCustomer({...newCustomer, district: e.target.value})} 
+                      disabled={!newCustomer.city}
+                    >
+                      <option value="">Seçiniz</option>
+                      {newCustomer.city && trCities[newCustomer.city]?.map(district => <option key={district} value={district}>{district}</option>)}
+                    </select>
+                 </div>
                  <div className="col-span-1 md:col-span-2"><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Açık Adres</label><textarea rows={2} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary outline-none" value={newCustomer.address} onChange={e => setNewCustomer({...newCustomer, address: e.target.value})} /></div>
               </div>
               <div><label className="block text-xs font-bold text-gray-500 mb-1 uppercase">Açıklama / Not</label><textarea rows={3} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-primary outline-none" value={newCustomer.description} onChange={e => setNewCustomer({...newCustomer, description: e.target.value})} /></div>

@@ -1,3 +1,4 @@
+
 {
   "name": "MatrixC App",
   "short_name": "MatrixC",
@@ -8,12 +9,12 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2697/2697430.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/679/679720.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2697/2697430.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/679/679720.png",
       "type": "image/png",
       "sizes": "512x512"
     }
