@@ -13,7 +13,8 @@ import { Shipping } from './pages/Shipping';
 import { Returns } from './pages/Returns'; 
 import { Collections } from './pages/Collections'; 
 import { Costs } from './pages/Costs'; 
-import { ActivityLogs } from './pages/ActivityLogs'; // Added
+import { Tasks } from './pages/Tasks'; // Added
+import { ActivityLogs } from './pages/ActivityLogs'; 
 import { Login } from './pages/Login';
 import { UserRole } from './types';
 
@@ -31,6 +32,7 @@ const AppContent: React.FC = () => {
         <main className="pb-20 sm:pb-10">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/tasks" element={<Tasks />} />
             <Route path="/products" element={<Products />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/pos" element={<POS />} />

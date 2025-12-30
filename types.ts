@@ -26,6 +26,14 @@ export enum CustomerType {
   CORPORATE = 'Kurumsal Müşteri'
 }
 
+export enum TaskPriority {
+  VERY_HIGH = 'VERY_HIGH',
+  HIGH = 'HIGH',
+  MEDIUM = 'MEDIUM',
+  LOW = 'LOW',
+  VERY_LOW = 'VERY_LOW'
+}
+
 export type BaseProductName = string;
 
 export interface AppSettings {
@@ -138,6 +146,18 @@ export interface Transaction {
   saleId?: string; // NEW: Hangi satışa ait olduğu (Opsiyonel, genel tahsilat için boş)
 }
 
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  assignedTo: string; // User ID
+  assignedToName: string;
+  createdBy: string;
+  dueDate: string;
+  priority: TaskPriority;
+  status: 'PENDING' | 'COMPLETED';
+}
+
 export interface CartItem extends Product {
   cartQuantity: number;
 }
@@ -171,7 +191,7 @@ export interface ActivityLog {
   userName: string;
   userRole: UserRole;
   action: 'LOGIN' | 'CREATE' | 'UPDATE' | 'DELETE' | 'STATUS_CHANGE' | 'FINANCIAL';
-  entity: 'PRODUCT' | 'CUSTOMER' | 'SALE' | 'RETURN' | 'COLLECTION' | 'SETTINGS';
+  entity: 'PRODUCT' | 'CUSTOMER' | 'SALE' | 'RETURN' | 'COLLECTION' | 'SETTINGS' | 'TASK';
   description: string;
   metadata?: any;
 }

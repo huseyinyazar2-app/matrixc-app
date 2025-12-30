@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { Product, Customer, Sale, Transaction, User, UserRole, TransactionType, AppSettings, PaymentStatus, SaleStatus, ReturnDetails, ProductCost, ActivityLog, ReturnItem, CartItem } from '../types';
+import { Product, Customer, Sale, Transaction, User, UserRole, TransactionType, AppSettings, PaymentStatus, SaleStatus, ReturnDetails, ProductCost, ActivityLog, ReturnItem, CartItem, Task, TaskPriority } from '../types';
 import { supabase } from '../src/supabaseClient';
 
 interface StoreContextType {
@@ -12,6 +12,7 @@ interface StoreContextType {
   customers: Customer[];
   sales: Sale[];
   transactions: Transaction[];
+  tasks: Task[];
   productCosts: ProductCost[];
   activityLogs: ActivityLog[];
   settings: AppSettings;
@@ -38,6 +39,9 @@ interface StoreContextType {
   updateReturnPayment: (saleId: string, paymentDetails: Partial<ReturnDetails>) => Promise<void>;
   processCollection: (saleId: string, amount: number, method: string, description: string) => Promise<void>;
   processGeneralCollection: (customerId: string, amount: number, method: string, description: string) => Promise<void>;
+  addTask: (task: Task) => Promise<void>;
+  updateTaskStatus: (taskId: string, status: 'PENDING' | 'COMPLETED') => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
   addTransaction: (transaction: Transaction) => Promise<void>;
   saveProductCost: (cost: ProductCost) => Promise<void>;
   updateSettings: (settings: AppSettings) => void;
@@ -64,6 +68,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [productCosts, setProductCosts] = useState<ProductCost[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -136,6 +141,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         { data: salesData },
         { data: saleItemsData },
         { data: transactionsData },
+        { data: tasksData },
         { data: costsData },
         { data: settingsData },
         { data: logsData }
@@ -146,6 +152,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         supabase.from('sales').select('*').order('date', { ascending: false }),
         supabase.from('sale_items').select('*'),
         supabase.from('transactions').select('*').order('date', { ascending: false }),
+        supabase.from('tasks').select('*').order('due_date', { ascending: true }),
         supabase.from('product_costs').select('*'),
         supabase.from('app_settings').select('*').limit(1).single(),
         supabase.from('activity_logs').select('*').order('date', { ascending: false }).limit(100)
@@ -182,6 +189,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           description: t.description,
           personnelName: t.personnel_name,
           saleId: t.sale_id
+        })));
+      }
+
+      if (tasksData) {
+        setTasks(tasksData.map((t: any) => ({
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          assignedTo: t.assigned_to,
+          assignedToName: t.assigned_to_name,
+          createdBy: t.created_by,
+          dueDate: t.due_date,
+          priority: t.priority,
+          status: t.status
         })));
       }
 
@@ -267,11 +288,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!confirm) return;
       
       try {
-        // Sırayla silme (Foreign Key constraintlerine dikkat ederek)
         await supabase.from('activity_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await supabase.from('sale_items').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await supabase.from('sales').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('tasks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await supabase.from('customers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await supabase.from('product_costs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
         await supabase.from('products').delete().neq('id', '00000000-0000-0000-0000-000000000000');
@@ -679,6 +700,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       refreshData();
   };
 
+  // --- TASK ACTIONS ---
+  const addTask = async (task: Task) => {
+      const { error } = await supabase.from('tasks').insert({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          assigned_to: task.assignedTo,
+          assigned_to_name: task.assignedToName,
+          created_by: task.createdBy,
+          due_date: task.dueDate,
+          priority: task.priority,
+          status: 'PENDING'
+      });
+      if (error) { alert("Görev eklenirken hata: " + error.message); return; }
+      logActivity('CREATE', 'TASK', `Yeni görev: ${task.title}`);
+      refreshData();
+  };
+
+  const updateTaskStatus = async (taskId: string, status: 'PENDING' | 'COMPLETED') => {
+      const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId);
+      if (error) { alert("Hata: " + error.message); return; }
+      refreshData();
+  };
+
+  const deleteTask = async (taskId: string) => {
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+      if (error) { alert("Hata: " + error.message); return; }
+      logActivity('DELETE', 'TASK', `Görev silindi`);
+      refreshData();
+  };
+
   const addTransaction = async (transaction: Transaction) => { /* Helper used internally */ };
   
   const saveProductCost = async (cost: ProductCost) => { 
@@ -731,10 +783,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       sales: visibleSales, 
       transactions: visibleTransactions, 
       activityLogs: visibleLogs,
+      tasks, // Added tasks to context
       products, customers, productCosts, settings, cart, 
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       addUser, updateUser, deleteUser,
       addProduct, updateProduct, deleteProduct, addCustomer, updateCustomer, deleteCustomer, adjustCustomerBalance, addSale, updateSale, editSale, updateSalePaymentStatus, addTransaction,
+      addTask, updateTaskStatus, deleteTask, // Added task methods
       updateSettings, refreshData, processReturn, updateReturnPayment, processCollection, processGeneralCollection, saveProductCost, logActivity, resetDatabase
     }}>
       {children}

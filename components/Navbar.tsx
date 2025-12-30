@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, LayoutDashboard, Users, BarChart3, LogOut, Download, Settings as SettingsIcon, Truck, RotateCcw, Banknote, Calculator, FileText } from 'lucide-react';
+import { Package, LayoutDashboard, Users, BarChart3, LogOut, Download, Settings as SettingsIcon, Truck, RotateCcw, Banknote, Calculator, FileText, CheckSquare } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { UserRole } from '../types';
@@ -32,6 +32,7 @@ export const Navbar: React.FC = () => {
 
   const allNavItems = [
     { path: '/', label: 'Panel', icon: <LayoutDashboard size={20} /> },
+    { path: '/tasks', label: 'Görevler', icon: <CheckSquare size={20} /> }, // Yeni menü
     { path: '/products', label: 'Ürünler', icon: <Package size={20} /> },
     { path: '/customers', label: 'Müşteriler', icon: <Users size={20} /> },
     { path: '/reports', label: 'Satışlar', icon: <BarChart3 size={20} /> },
