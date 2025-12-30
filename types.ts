@@ -155,7 +155,8 @@ export interface Task {
   createdBy: string;
   dueDate: string;
   priority: TaskPriority;
-  status: 'PENDING' | 'COMPLETED';
+  status: 'PENDING' | 'COMPLETED' | 'WAITING_APPROVAL';
+  adminNote?: string; // NEW: Admin red nedeni
 }
 
 export interface CartItem extends Product {

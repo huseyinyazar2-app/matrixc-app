@@ -40,7 +40,8 @@ interface StoreContextType {
   processCollection: (saleId: string, amount: number, method: string, description: string) => Promise<void>;
   processGeneralCollection: (customerId: string, amount: number, method: string, description: string) => Promise<void>;
   addTask: (task: Task) => Promise<void>;
-  updateTaskStatus: (taskId: string, status: 'PENDING' | 'COMPLETED') => Promise<void>;
+  updateTaskStatus: (taskId: string, status: 'PENDING' | 'COMPLETED' | 'WAITING_APPROVAL') => Promise<void>;
+  rejectTask: (taskId: string, reason: string) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   addTransaction: (transaction: Transaction) => Promise<void>;
   saveProductCost: (cost: ProductCost) => Promise<void>;
@@ -202,7 +203,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           createdBy: t.created_by,
           dueDate: t.due_date,
           priority: t.priority,
-          status: t.status
+          status: t.status,
+          adminNote: t.admin_note
         })));
       }
 
@@ -718,9 +720,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       refreshData();
   };
 
-  const updateTaskStatus = async (taskId: string, status: 'PENDING' | 'COMPLETED') => {
-      const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId);
+  const updateTaskStatus = async (taskId: string, status: 'PENDING' | 'COMPLETED' | 'WAITING_APPROVAL') => {
+      // Eğer durum "WAITING_APPROVAL" ise admin notunu temizle (yeni bir istek çünkü)
+      const updateData: any = { status };
+      if (status === 'WAITING_APPROVAL') {
+          updateData.admin_note = null;
+      }
+
+      const { error } = await supabase.from('tasks').update(updateData).eq('id', taskId);
       if (error) { alert("Hata: " + error.message); return; }
+      
+      // Log
+      if (status === 'COMPLETED') logActivity('STATUS_CHANGE', 'TASK', 'Görev tamamlandı onaylandı.');
+      else if (status === 'WAITING_APPROVAL') logActivity('STATUS_CHANGE', 'TASK', 'Görev onaya gönderildi.');
+      
+      refreshData();
+  };
+
+  const rejectTask = async (taskId: string, reason: string) => {
+      const { error } = await supabase.from('tasks').update({
+          status: 'PENDING',
+          admin_note: reason
+      }).eq('id', taskId);
+      
+      if (error) { alert("Hata: " + error.message); return; }
+      logActivity('STATUS_CHANGE', 'TASK', `Görev reddedildi. Not: ${reason}`);
       refreshData();
   };
 
@@ -788,7 +812,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       addUser, updateUser, deleteUser,
       addProduct, updateProduct, deleteProduct, addCustomer, updateCustomer, deleteCustomer, adjustCustomerBalance, addSale, updateSale, editSale, updateSalePaymentStatus, addTransaction,
-      addTask, updateTaskStatus, deleteTask, // Added task methods
+      addTask, updateTaskStatus, deleteTask, rejectTask, // Updated methods
       updateSettings, refreshData, processReturn, updateReturnPayment, processCollection, processGeneralCollection, saveProductCost, logActivity, resetDatabase
     }}>
       {children}
