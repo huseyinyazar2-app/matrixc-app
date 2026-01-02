@@ -64,8 +64,8 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // State initialization fixed to read directly from window object to avoid race conditions
-  const [appVersion, setAppVersion] = useState<string>(() => (window as any).MatrixC_Version || 'v?');
+  // Versiyon bilgisini al, yoksa 'v?' olarak başlat ve useEffect ile kontrol et
+  const [appVersion, setAppVersion] = useState<string>((window as any).MatrixC_Version || 'v?');
   
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => { const saved = localStorage.getItem('currentUser'); return saved ? JSON.parse(saved) : null; });
@@ -82,6 +82,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Persistence for Cart and Session only
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
   useEffect(() => { localStorage.setItem('posCart', JSON.stringify(cart)); }, [cart]);
+
+  // --- VERSION CHECKER ---
+  useEffect(() => {
+    // Eğer versiyon 'v?' ise, scriptin yüklenmesini bekle (1 saniye içinde 100ms aralıklarla dene)
+    if (appVersion === 'v?') {
+        const interval = setInterval(() => {
+            if ((window as any).MatrixC_Version) {
+                setAppVersion((window as any).MatrixC_Version);
+                clearInterval(interval);
+            }
+        }, 100);
+        
+        // 2 saniye sonra aramayı bırak
+        setTimeout(() => clearInterval(interval), 2000);
+    }
+  }, [appVersion]);
 
   // --- SUPABASE DATA MAPPING HELPERS ---
   const mapDbProduct = (p: any): Product => ({

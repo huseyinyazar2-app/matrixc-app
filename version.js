@@ -1,4 +1,13 @@
 
-// Bu dosya hem Service Worker hem de React uygulaması tarafından okunur.
-// Versiyonu değiştirmek için sadece buradaki değeri güncelleyin.
-var MatrixC_Version = 'v5';
+// Versiyon Kontrol Dosyası
+var MatrixC_Version = 'v6';
+
+// Tarayıcı ortamı için
+if (typeof window !== 'undefined') {
+    window.MatrixC_Version = MatrixC_Version;
+}
+
+// Service Worker ortamı için
+if (typeof self !== 'undefined') {
+    self.MatrixC_Version = MatrixC_Version;
+}

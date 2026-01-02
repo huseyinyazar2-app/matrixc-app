@@ -60,7 +60,7 @@ export const Shipping: React.FC = () => {
     <div className="p-4 sm:p-6 max-w-7xl mx-auto mb-20">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center">
-          <Truck size={24} sm:size={28} className="mr-3 text-primary" /> Teslimat & Kargo
+          <Truck className="mr-3 text-primary w-6 h-6 sm:w-7 sm:h-7" /> Teslimat & Kargo
         </h1>
         <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-200 overflow-x-auto max-w-full">
            <button onClick={() => setStatusFilter('BEKLIYOR')} className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex-1 whitespace-nowrap ${statusFilter === 'BEKLIYOR' ? 'bg-primary text-white shadow-md' : 'text-gray-500 hover:bg-gray-100'}`}>BEKLEYENLER</button>

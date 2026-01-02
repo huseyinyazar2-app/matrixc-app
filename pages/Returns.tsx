@@ -154,7 +154,7 @@ export const Returns: React.FC = () => {
         return;
     }
 
-    const isUnpaid = selectedSale.paymentStatus === PaymentStatus.UNPAID || selectedSale.paymentStatus === 'VERESIYE';
+    const isUnpaid = selectedSale.paymentStatus === PaymentStatus.UNPAID;
 
     const details: ReturnDetails = {
       date: new Date().toISOString(),
@@ -409,7 +409,7 @@ export const Returns: React.FC = () => {
                       </div>
 
                       {/* Payment Warning */}
-                      {(selectedSale.paymentStatus === PaymentStatus.UNPAID || selectedSale.paymentStatus === 'VERESIYE') ? (
+                      {(selectedSale.paymentStatus === PaymentStatus.UNPAID) ? (
                         <div className="bg-red-50 p-3 rounded-xl border border-red-200 flex items-start">
                           <ShieldAlert className="text-red-600 mt-0.5 mr-2" size={16} />
                           <p className="text-xs text-red-700">Bu satış <strong>VERESİYE</strong>. Onaylandığında tutar bakiyeden düşülecek.</p>
