@@ -23,7 +23,7 @@ export const Login: React.FC = () => {
         <div className="bg-primary p-8 text-center">
            <h1 className="text-3xl font-bold text-white mb-2 flex items-center justify-center">
              MatrixC<span className="text-indigo-200">App</span>
-             <span className="ml-2 text-xs font-normal text-indigo-300 bg-indigo-800 px-2 py-0.5 rounded-full opacity-80">{appVersion}</span>
+             <span className="ml-2 text-xs font-bold text-white bg-white/20 px-2 py-0.5 rounded-full">{appVersion || 'v?'}</span>
            </h1>
            <p className="text-indigo-100 text-sm">Personel Giriş Paneli</p>
         </div>

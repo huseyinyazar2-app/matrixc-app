@@ -7,7 +7,7 @@ import { UserRole } from '../types';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
-  const { currentUser, logout, appVersion } = useStore();
+  const { currentUser, logout } = useStore();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
@@ -71,7 +71,6 @@ export const Navbar: React.FC = () => {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center text-primary font-bold text-xl">
               MatrixC<span className="text-slate-800">App</span>
-              <span className="text-[10px] text-gray-400 ml-1 font-normal self-end mb-1">{appVersion}</span>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navItems.map((item) => (

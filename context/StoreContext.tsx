@@ -64,7 +64,9 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [appVersion, setAppVersion] = useState<string>('');
+  // State initialization fixed to read directly from window object to avoid race conditions
+  const [appVersion, setAppVersion] = useState<string>(() => (window as any).MatrixC_Version || 'v?');
+  
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => { const saved = localStorage.getItem('currentUser'); return saved ? JSON.parse(saved) : null; });
   const [products, setProducts] = useState<Product[]>([]);
@@ -80,14 +82,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Persistence for Cart and Session only
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
   useEffect(() => { localStorage.setItem('posCart', JSON.stringify(cart)); }, [cart]);
-
-  // --- VERSION LOAD FROM version.js ---
-  useEffect(() => {
-    // index.html'de yüklenen version.js dosyasından global değişkeni oku
-    if ((window as any).MatrixC_Version) {
-        setAppVersion((window as any).MatrixC_Version);
-    }
-  }, []);
 
   // --- SUPABASE DATA MAPPING HELPERS ---
   const mapDbProduct = (p: any): Product => ({

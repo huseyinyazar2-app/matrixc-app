@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 import { UserRole, SaleStatus } from '../types';
 
 export const Dashboard: React.FC = () => {
-  const { products, sales, customers, currentUser } = useStore();
+  const { products, sales, customers, currentUser, appVersion } = useStore();
 
   const totalRevenue = sales.reduce((acc, s) => acc + s.totalAmount, 0);
 
@@ -42,7 +42,10 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto mb-20 sm:mb-0">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-slate-800">Gösterge Paneli</h1>
+        <h1 className="text-2xl font-bold text-slate-800 flex items-center">
+            Gösterge Paneli
+            <span className="ml-3 text-xs font-medium text-white bg-slate-400 px-2 py-0.5 rounded-full">{appVersion}</span>
+        </h1>
       </div>
 
       {pendingShipments.length > 0 && (
