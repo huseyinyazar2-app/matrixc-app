@@ -44,7 +44,7 @@ export const Dashboard: React.FC = () => {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-800 flex items-center">
             Gösterge Paneli
-            <span className="ml-3 text-xs font-medium text-white bg-slate-400 px-2 py-0.5 rounded-full">{appVersion}</span>
+            <span className="ml-3 text-[10px] font-bold text-white bg-indigo-600 px-2 py-0.5 rounded-full shadow-sm">{appVersion}</span>
         </h1>
       </div>
 
@@ -66,19 +66,21 @@ export const Dashboard: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        
+        {/* MODIFIED: Gradient Revenue Card */}
+        <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 rounded-xl shadow-lg shadow-indigo-200 transform hover:scale-[1.02] transition-transform">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">Toplam Ciro (Siz)</p>
-              <p className="text-2xl font-bold text-slate-900">{totalRevenue.toLocaleString('tr-TR')} ₺</p>
+              <p className="text-sm font-medium text-indigo-100">Toplam Ciro (Siz)</p>
+              <p className="text-2xl font-black text-white">{totalRevenue.toLocaleString('tr-TR')} ₺</p>
             </div>
-            <div className="p-3 bg-green-100 rounded-full text-green-600">
+            <div className="p-3 bg-white/20 backdrop-blur-sm rounded-full text-white">
               <TrendingUp size={24} />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">
@@ -92,7 +94,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Stok Kalemi (Varyant)</p>
@@ -104,7 +106,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Kritik Stok</p>

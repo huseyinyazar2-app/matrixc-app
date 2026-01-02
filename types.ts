@@ -1,6 +1,6 @@
 
 // Versiyonu buraya sabitliyoruz. React derlendiğinde bu string kodun parçası olur.
-export const APP_VERSION = 'v8';
+export const APP_VERSION = 'v9';
 
 export enum UserRole {
   ADMIN = 'ADMIN',
