@@ -4,7 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { LogIn, Lock, User } from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const { login } = useStore();
+  const { login, appVersion } = useStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,7 +21,10 @@ export const Login: React.FC = () => {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl overflow-hidden max-w-md w-full flex flex-col">
         <div className="bg-primary p-8 text-center">
-           <h1 className="text-3xl font-bold text-white mb-2">MatrixC<span className="text-indigo-200">App</span></h1>
+           <h1 className="text-3xl font-bold text-white mb-2 flex items-center justify-center">
+             MatrixC<span className="text-indigo-200">App</span>
+             <span className="ml-2 text-xs font-normal text-indigo-300 bg-indigo-800 px-2 py-0.5 rounded-full opacity-80">{appVersion}</span>
+           </h1>
            <p className="text-indigo-100 text-sm">Personel Giriş Paneli</p>
         </div>
         

@@ -4,6 +4,7 @@ import { Product, Customer, Sale, Transaction, User, UserRole, TransactionType, 
 import { supabase } from '../src/supabaseClient';
 
 interface StoreContextType {
+  appVersion: string;
   currentUser: User | null;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -63,6 +64,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [appVersion, setAppVersion] = useState<string>('');
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => { const saved = localStorage.getItem('currentUser'); return saved ? JSON.parse(saved) : null; });
   const [products, setProducts] = useState<Product[]>([]);
@@ -78,6 +80,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Persistence for Cart and Session only
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
   useEffect(() => { localStorage.setItem('posCart', JSON.stringify(cart)); }, [cart]);
+
+  // --- SERVICE WORKER VERSION SYNC ---
+  useEffect(() => {
+    // 1 saniye gecikmeli sor ki SW tam yüklensin
+    const checkVersion = () => {
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            const messageChannel = new MessageChannel();
+            messageChannel.port1.onmessage = (event) => {
+                if (event.data && event.data.version) {
+                    setAppVersion(event.data.version);
+                }
+            };
+            navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [messageChannel.port2]);
+        }
+    };
+    
+    // İlk yüklemede ve SW değiştiğinde kontrol et
+    checkVersion();
+    navigator.serviceWorker.addEventListener('controllerchange', checkVersion);
+    // Yedek olarak 1sn sonra tekrar dene (ilk yüklemede controller hemen hazır olmayabilir)
+    setTimeout(checkVersion, 1000);
+  }, []);
 
   // --- SUPABASE DATA MAPPING HELPERS ---
   const mapDbProduct = (p: any): Product => ({
@@ -803,16 +827,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StoreContext.Provider value={{ 
+      appVersion, // Export version to context consumers
       currentUser, login, logout, users,
       sales: visibleSales, 
       transactions: visibleTransactions, 
       activityLogs: visibleLogs,
-      tasks, // Added tasks to context
+      tasks, 
       products, customers, productCosts, settings, cart, 
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       addUser, updateUser, deleteUser,
       addProduct, updateProduct, deleteProduct, addCustomer, updateCustomer, deleteCustomer, adjustCustomerBalance, addSale, updateSale, editSale, updateSalePaymentStatus, addTransaction,
-      addTask, updateTaskStatus, deleteTask, rejectTask, // Updated methods
+      addTask, updateTaskStatus, deleteTask, rejectTask, 
       updateSettings, refreshData, processReturn, updateReturnPayment, processCollection, processGeneralCollection, saveProductCost, logActivity, resetDatabase
     }}>
       {children}

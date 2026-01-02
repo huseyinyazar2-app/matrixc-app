@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Package, LayoutDashboard, Users, BarChart3, LogOut, Download, Settings as SettingsIcon, Truck, RotateCcw, Banknote, Calculator, FileText, CheckSquare } from 'lucide-react';
+import { Package, LayoutDashboard, Users, BarChart3, LogOut, Download, Settings as SettingsIcon, Truck, RotateCcw, Banknote, Calculator, FileText, CheckSquare, RefreshCw } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { UserRole } from '../types';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
-  const { currentUser, logout } = useStore();
+  const { currentUser, logout, appVersion } = useStore();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
@@ -30,9 +30,22 @@ export const Navbar: React.FC = () => {
     });
   };
 
+  const handleRefreshApp = () => {
+      if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+              for(let registration of registrations) {
+                  registration.unregister();
+              }
+              window.location.reload();
+          });
+      } else {
+          window.location.reload();
+      }
+  };
+
   const allNavItems = [
     { path: '/', label: 'Panel', icon: <LayoutDashboard size={20} /> },
-    { path: '/tasks', label: 'Görevler', icon: <CheckSquare size={20} /> }, // Yeni menü
+    { path: '/tasks', label: 'Görevler', icon: <CheckSquare size={20} /> }, 
     { path: '/products', label: 'Ürünler', icon: <Package size={20} /> },
     { path: '/customers', label: 'Müşteriler', icon: <Users size={20} /> },
     { path: '/reports', label: 'Satışlar', icon: <BarChart3 size={20} /> },
@@ -58,6 +71,7 @@ export const Navbar: React.FC = () => {
           <div className="flex">
             <div className="flex-shrink-0 flex items-center text-primary font-bold text-xl">
               MatrixC<span className="text-slate-800">App</span>
+              <span className="text-[10px] text-gray-400 ml-1 font-normal self-end mb-1">{appVersion}</span>
             </div>
             <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
               {navItems.map((item) => (
@@ -86,14 +100,24 @@ export const Navbar: React.FC = () => {
                 </button>
              )}
 
-             <div className="flex-shrink-0 flex items-center border-l pl-4 ml-2">
-                <div className="text-right mr-3 hidden md:block">
+             <div className="flex-shrink-0 flex items-center border-l pl-4 ml-2 gap-2">
+                <div className="text-right mr-1 hidden md:block">
                   <div className="text-xs text-gray-400">Giriş Yapan</div>
                   <div className="text-sm font-bold text-gray-700">{currentUser?.name}</div>
                 </div>
+                
+                <button 
+                  onClick={handleRefreshApp}
+                  className="text-gray-400 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"
+                  title="Uygulamayı Yenile"
+                >
+                  <RefreshCw size={18} />
+                </button>
+
                 <button 
                   onClick={logout}
                   className="text-gray-500 hover:text-red-600 p-2 rounded-full hover:bg-gray-100 transition-colors"
+                  title="Çıkış Yap"
                 >
                   <LogOut size={20} />
                 </button>
