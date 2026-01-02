@@ -30,15 +30,19 @@ export const Navbar: React.FC = () => {
     });
   };
 
-  const handleRefreshApp = () => {
-      if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function(registrations) {
-              for(let registration of registrations) {
-                  registration.unregister();
+  const handleRefreshApp = async () => {
+      if (confirm('Uygulama önbelleği temizlenip yeniden başlatılacak. Onaylıyor musunuz?')) {
+          if ('serviceWorker' in navigator) {
+              const registrations = await navigator.serviceWorker.getRegistrations();
+              for (let registration of registrations) {
+                  await registration.unregister();
               }
-              window.location.reload();
-          });
-      } else {
+          }
+          // Clear standard caches
+          if ('caches' in window) {
+              const keys = await caches.keys();
+              await Promise.all(keys.map(key => caches.delete(key)));
+          }
           window.location.reload();
       }
   };
@@ -108,7 +112,7 @@ export const Navbar: React.FC = () => {
                 <button 
                   onClick={handleRefreshApp}
                   className="text-gray-400 hover:text-blue-600 p-2 rounded-full hover:bg-blue-50 transition-colors"
-                  title="Uygulamayı Yenile"
+                  title="Önbelleği Temizle ve Yenile"
                 >
                   <RefreshCw size={18} />
                 </button>

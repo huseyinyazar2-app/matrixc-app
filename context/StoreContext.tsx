@@ -64,7 +64,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Versiyon bilgisini al, yoksa 'v?' olarak başlat ve useEffect ile kontrol et
+  // Versiyonu önce window'dan dene, yoksa placeholder koy
   const [appVersion, setAppVersion] = useState<string>((window as any).MatrixC_Version || 'v?');
   
   const [users, setUsers] = useState<User[]>([]);
@@ -83,19 +83,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
   useEffect(() => { localStorage.setItem('posCart', JSON.stringify(cart)); }, [cart]);
 
-  // --- VERSION CHECKER ---
+  // --- ROBUST VERSION CHECKER ---
   useEffect(() => {
-    // Eğer versiyon 'v?' ise, scriptin yüklenmesini bekle (1 saniye içinde 100ms aralıklarla dene)
-    if (appVersion === 'v?') {
-        const interval = setInterval(() => {
-            if ((window as any).MatrixC_Version) {
-                setAppVersion((window as any).MatrixC_Version);
-                clearInterval(interval);
+    const fetchVersionManually = async () => {
+        try {
+            // Cache-busting ile dosyayı çek
+            const response = await fetch('/version.js?t=' + Date.now());
+            const text = await response.text();
+            // Regex ile version stringini yakala: var MatrixC_Version = 'v7';
+            const match = text.match(/var MatrixC_Version = ['"](.*?)['"];/);
+            if (match && match[1]) {
+                const ver = match[1];
+                setAppVersion(ver);
+                (window as any).MatrixC_Version = ver; // Window'u da güncelle
             }
-        }, 100);
-        
-        // 2 saniye sonra aramayı bırak
-        setTimeout(() => clearInterval(interval), 2000);
+        } catch (e) {
+            console.error("Versiyon dosyası okunamadı", e);
+        }
+    };
+
+    if (appVersion === 'v?') {
+        // Eğer window'da zaten varsa hemen al
+        if ((window as any).MatrixC_Version) {
+            setAppVersion((window as any).MatrixC_Version);
+        } else {
+            // Yoksa manuel fetch dene
+            fetchVersionManually();
+            
+            // Ayrıca kısa bir süre polling yap (script geç yüklenebilir)
+            const interval = setInterval(() => {
+                if ((window as any).MatrixC_Version) {
+                    setAppVersion((window as any).MatrixC_Version);
+                    clearInterval(interval);
+                }
+            }, 200);
+            setTimeout(() => clearInterval(interval), 3000);
+        }
     }
   }, [appVersion]);
 

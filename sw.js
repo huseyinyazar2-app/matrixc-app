@@ -1,4 +1,7 @@
 
+// MatrixC Service Worker - Version v7
+// Bu dosya içeriği değiştiğinde tarayıcı SW'yi günceller.
+
 // Versiyon dosyasını içe aktar (MatrixC_Version değişkeni gelir)
 importScripts('version.js');
 
@@ -35,6 +38,7 @@ self.addEventListener('activate', (event) => {
         cacheNames.map((cacheName) => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
             // Eski versiyon cache'lerini sil
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
