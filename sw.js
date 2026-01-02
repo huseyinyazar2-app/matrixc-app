@@ -1,5 +1,5 @@
 
-// MatrixC Service Worker - Version v7
+// MatrixC Service Worker - Version v8
 // Bu dosya içeriği değiştiğinde tarayıcı SW'yi günceller.
 
 // Versiyon dosyasını içe aktar (MatrixC_Version değişkeni gelir)

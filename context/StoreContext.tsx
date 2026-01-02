@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { Product, Customer, Sale, Transaction, User, UserRole, TransactionType, AppSettings, PaymentStatus, SaleStatus, ReturnDetails, ProductCost, ActivityLog, ReturnItem, CartItem, Task, TaskPriority } from '../types';
+import { Product, Customer, Sale, Transaction, User, UserRole, TransactionType, AppSettings, PaymentStatus, SaleStatus, ReturnDetails, ProductCost, ActivityLog, ReturnItem, CartItem, Task, TaskPriority, APP_VERSION } from '../types';
 import { supabase } from '../src/supabaseClient';
 
 interface StoreContextType {
@@ -64,8 +64,9 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Versiyonu önce window'dan dene, yoksa placeholder koy
-  const [appVersion, setAppVersion] = useState<string>((window as any).MatrixC_Version || 'v?');
+  // ARTIK KESİN ÇÖZÜM: Versiyonu doğrudan types.ts içindeki sabitten alıyoruz.
+  // window objesine veya fetch işlemine gerek yok. Kod yüklendiyse versiyon da yüklenmiştir.
+  const [appVersion] = useState<string>(APP_VERSION);
   
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(() => { const saved = localStorage.getItem('currentUser'); return saved ? JSON.parse(saved) : null; });
@@ -82,45 +83,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Persistence for Cart and Session only
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
   useEffect(() => { localStorage.setItem('posCart', JSON.stringify(cart)); }, [cart]);
-
-  // --- ROBUST VERSION CHECKER ---
-  useEffect(() => {
-    const fetchVersionManually = async () => {
-        try {
-            // Cache-busting ile dosyayı çek
-            const response = await fetch('/version.js?t=' + Date.now());
-            const text = await response.text();
-            // Regex ile version stringini yakala: var MatrixC_Version = 'v7';
-            const match = text.match(/var MatrixC_Version = ['"](.*?)['"];/);
-            if (match && match[1]) {
-                const ver = match[1];
-                setAppVersion(ver);
-                (window as any).MatrixC_Version = ver; // Window'u da güncelle
-            }
-        } catch (e) {
-            console.error("Versiyon dosyası okunamadı", e);
-        }
-    };
-
-    if (appVersion === 'v?') {
-        // Eğer window'da zaten varsa hemen al
-        if ((window as any).MatrixC_Version) {
-            setAppVersion((window as any).MatrixC_Version);
-        } else {
-            // Yoksa manuel fetch dene
-            fetchVersionManually();
-            
-            // Ayrıca kısa bir süre polling yap (script geç yüklenebilir)
-            const interval = setInterval(() => {
-                if ((window as any).MatrixC_Version) {
-                    setAppVersion((window as any).MatrixC_Version);
-                    clearInterval(interval);
-                }
-            }, 200);
-            setTimeout(() => clearInterval(interval), 3000);
-        }
-    }
-  }, [appVersion]);
 
   // --- SUPABASE DATA MAPPING HELPERS ---
   const mapDbProduct = (p: any): Product => ({
