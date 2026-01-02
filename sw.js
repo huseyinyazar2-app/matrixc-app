@@ -1,10 +1,13 @@
 
-const APP_VERSION = 'v5'; // TEK KAYNAK: Sadece burayı değiştirmen yeterli.
-const CACHE_NAME = `matrixc-app-${APP_VERSION}`; 
+// Versiyon dosyasını içe aktar (MatrixC_Version değişkeni gelir)
+importScripts('version.js');
+
+const CACHE_NAME = `matrixc-app-${MatrixC_Version}`; 
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/version.js'
 ];
 
 // Install: Cache files
@@ -68,14 +71,4 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request);
       })
   );
-});
-
-// React uygulamasından gelen "Versiyon kaç?" sorusuna cevap ver
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'GET_VERSION') {
-    // Mesajı gönderen kaynağa (client) versiyonu geri dön
-    if (event.ports && event.ports[0]) {
-        event.ports[0].postMessage({ version: APP_VERSION });
-    }
-  }
 });

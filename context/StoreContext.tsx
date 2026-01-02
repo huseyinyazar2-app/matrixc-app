@@ -81,26 +81,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
   useEffect(() => { localStorage.setItem('posCart', JSON.stringify(cart)); }, [cart]);
 
-  // --- SERVICE WORKER VERSION SYNC ---
+  // --- VERSION LOAD FROM version.js ---
   useEffect(() => {
-    // 1 saniye gecikmeli sor ki SW tam yüklensin
-    const checkVersion = () => {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            const messageChannel = new MessageChannel();
-            messageChannel.port1.onmessage = (event) => {
-                if (event.data && event.data.version) {
-                    setAppVersion(event.data.version);
-                }
-            };
-            navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [messageChannel.port2]);
-        }
-    };
-    
-    // İlk yüklemede ve SW değiştiğinde kontrol et
-    checkVersion();
-    navigator.serviceWorker.addEventListener('controllerchange', checkVersion);
-    // Yedek olarak 1sn sonra tekrar dene (ilk yüklemede controller hemen hazır olmayabilir)
-    setTimeout(checkVersion, 1000);
+    // index.html'de yüklenen version.js dosyasından global değişkeni oku
+    if ((window as any).MatrixC_Version) {
+        setAppVersion((window as any).MatrixC_Version);
+    }
   }, []);
 
   // --- SUPABASE DATA MAPPING HELPERS ---
