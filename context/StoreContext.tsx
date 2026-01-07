@@ -50,6 +50,7 @@ interface StoreContextType {
   refreshData: () => void;
   logActivity: (action: ActivityLog['action'], entity: ActivityLog['entity'], description: string) => void;
   resetDatabase: () => void;
+  pendingTaskCount: number; // NEW: Expose count for UI
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -64,8 +65,6 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // ARTIK KESİN ÇÖZÜM: Versiyonu doğrudan types.ts içindeki sabitten alıyoruz.
-  // window objesine veya fetch işlemine gerek yok. Kod yüklendiyse versiyon da yüklenmiştir.
   const [appVersion] = useState<string>(APP_VERSION);
   
   const [users, setUsers] = useState<User[]>([]);
@@ -83,6 +82,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Persistence for Cart and Session only
   useEffect(() => { localStorage.setItem('currentUser', JSON.stringify(currentUser)); }, [currentUser]);
   useEffect(() => { localStorage.setItem('posCart', JSON.stringify(cart)); }, [cart]);
+
+  // --- APP BADGING LOGIC (Notifications) ---
+  const pendingTaskCount = useMemo(() => {
+      if (!currentUser) return 0;
+      if (currentUser.role === UserRole.ADMIN) {
+          // Admin için: Onay bekleyen görev sayısı
+          return tasks.filter(t => t.status === 'WAITING_APPROVAL').length;
+      } else {
+          // Personel için: Kendisine atanmış ve tamamlanmamış görev sayısı
+          return tasks.filter(t => t.assignedTo === currentUser.id && t.status === 'PENDING').length;
+      }
+  }, [tasks, currentUser]);
+
+  useEffect(() => {
+      // Modern tarayıcılarda (PWA) ikon üzerine sayı ekler
+      if ('setAppBadge' in navigator) {
+          if (pendingTaskCount > 0) {
+              (navigator as any).setAppBadge(pendingTaskCount).catch((e: any) => console.log(e));
+          } else {
+              (navigator as any).clearAppBadge().catch((e: any) => console.log(e));
+          }
+      }
+  }, [pendingTaskCount]);
 
   // --- SUPABASE DATA MAPPING HELPERS ---
   const mapDbProduct = (p: any): Product => ({
@@ -335,6 +357,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (data) { 
         setCurrentUser(data); 
         logActivity('LOGIN', 'SETTINGS', 'Sisteme giriş yapıldı.');
+        
+        // Bildirim İzni İste
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            Notification.requestPermission();
+        }
+        
         return true; 
     }
     return false;
@@ -819,7 +847,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addUser, updateUser, deleteUser,
       addProduct, updateProduct, deleteProduct, addCustomer, updateCustomer, deleteCustomer, adjustCustomerBalance, addSale, updateSale, editSale, updateSalePaymentStatus, addTransaction,
       addTask, updateTaskStatus, deleteTask, rejectTask, 
-      updateSettings, refreshData, processReturn, updateReturnPayment, processCollection, processGeneralCollection, saveProductCost, logActivity, resetDatabase
+      updateSettings, refreshData, processReturn, updateReturnPayment, processCollection, processGeneralCollection, saveProductCost, logActivity, resetDatabase,
+      pendingTaskCount // Exposed for Badge
     }}>
       {children}
     </StoreContext.Provider>

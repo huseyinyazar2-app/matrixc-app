@@ -7,7 +7,7 @@ import { UserRole } from '../types';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
-  const { currentUser, logout } = useStore();
+  const { currentUser, logout, pendingTaskCount } = useStore();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
@@ -47,9 +47,15 @@ export const Navbar: React.FC = () => {
       }
   };
 
+  // NavItem with Badge Support
   const allNavItems = [
     { path: '/', label: 'Panel', icon: <LayoutDashboard size={20} /> },
-    { path: '/tasks', label: 'Görevler', icon: <CheckSquare size={20} /> }, 
+    { 
+      path: '/tasks', 
+      label: 'Görevler', 
+      icon: <CheckSquare size={20} />, 
+      badge: pendingTaskCount > 0 ? pendingTaskCount : null 
+    }, 
     { path: '/products', label: 'Ürünler', icon: <Package size={20} /> },
     { path: '/customers', label: 'Müşteriler', icon: <Users size={20} /> },
     { path: '/reports', label: 'Satışlar', icon: <BarChart3 size={20} /> },
@@ -81,13 +87,20 @@ export const Navbar: React.FC = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium h-full ${
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium h-full relative ${
                     location.pathname === item.path
                       ? 'border-primary text-slate-900'
                       : 'border-transparent text-slate-500 hover:border-gray-300 hover:text-slate-700'
                   }`}
                 >
-                  <span className="mr-2">{item.icon}</span>
+                  <span className="mr-2 relative">
+                    {item.icon}
+                    {item.badge && (
+                      <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
+                        {item.badge}
+                      </span>
+                    )}
+                  </span>
                   {item.label}
                 </Link>
               ))}
@@ -132,8 +145,15 @@ export const Navbar: React.FC = () => {
       <div className="sm:hidden border-t border-gray-200 bg-gray-50 fixed bottom-0 w-full z-50 pb-safe overflow-x-auto no-scrollbar">
          <div className="flex px-2 min-w-max">
             {navItems.map((item) => (
-                <Link key={item.path} to={item.path} className={`flex flex-col items-center p-3 min-w-[70px] ${location.pathname === item.path ? 'text-primary' : 'text-gray-500'}`}>
-                {item.icon}
+                <Link key={item.path} to={item.path} className={`flex flex-col items-center p-3 min-w-[70px] relative ${location.pathname === item.path ? 'text-primary' : 'text-gray-500'}`}>
+                <div className="relative">
+                  {item.icon}
+                  {item.badge && (
+                    <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[10px] mt-1 font-medium whitespace-nowrap">{item.label}</span>
                 </Link>
             ))}

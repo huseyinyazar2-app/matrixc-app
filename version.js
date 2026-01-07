@@ -1,6 +1,6 @@
 
 // Versiyon Kontrol Dosyası
-var MatrixC_Version = 'v9';
+var MatrixC_Version = 'v10';
 
 // Tarayıcı ortamı için
 if (typeof window !== 'undefined') {
